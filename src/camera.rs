@@ -129,7 +129,6 @@ pub fn setup_camera(
                 ..default()
             };
 
-            
             let lut_image = images
                 .get_mut(&PSX_LUT_HANDLE)
                 .expect("Handle should point to asset");
@@ -165,7 +164,6 @@ pub fn setup_camera(
                     view_formats: &[],
                 },
                 sampler: ImageSampler::nearest(),
-            //    asset_usage: RenderAssetUsages::RENDER_WORLD,
                 ..default()
             };
 
@@ -188,85 +186,83 @@ pub fn setup_camera(
             });
             let camera = Camera {
                 target: RenderTarget::Image(image_handle.clone()),
-                clear_color: ClearColorConfig::Custom(Color::srgba(0.,0.,0.,0.)),
+                clear_color: ClearColorConfig::Custom(Color::srgba(0., 0., 0., 0.)),
                 hdr: pixel_camera.hdr,
                 ..default()
             };
 
-            commands
-                .entity(entity)
-                .insert((
-                    Visibility::Hidden,
-                    Transform::default(),
-                    Camera3d::default(),
-                    projection,
-                    exposure,
-                    camera,
-                    ScreenSpaceReflections::default(),
-                    bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
-                ));
+            commands.entity(entity).insert((
+                Visibility::Hidden,
+                Transform::default(),
+                Camera3d::default(),
+                projection,
+                exposure,
+                camera,
+                ScreenSpaceReflections::default(),
+                bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
+            ));
 
-            let render_layer = 3 ;
+            let render_layer = 3;
             let ui_layer = render_layer - 1;
 
             let quad_handle = meshes.add(Mesh::from(Rectangle::new(
                 (size.width * 4) as f32,
                 (size.height * 4) as f32,
             )));
-/* 
+            /*
 
-            //dithering
-            let level = 3;
-            let power = level + 1;
-            let map_size: u32 = 1 << power;
-            let mut buffer = Vec::<u8>::new();
+                       //dithering
+                       let level = 3;
+                       let power = level + 1;
+                       let map_size: u32 = 1 << power;
+                       let mut buffer = Vec::<u8>::new();
 
-            for row in 0..map_size {
-                for col in 0..map_size {
-                    let a = row ^ col;
-                    // Interleave bits of `a` with bits of y coordinate in reverse order
-                    let mut result: u64 = 0;
-                    let mut bit = 0;
-                    let mut mask = power as i32 - 1;
-                    loop {
-                        if bit >= 2 * power {
-                            break;
-                        }
-                        result |= (((col >> mask) & 1) << bit) as u64;
-                        bit += 1;
-                        result |= (((a >> mask) & 1) << bit) as u64;
-                        bit += 1;
-                        mask -= 1;
-                    }
-                    let value = ((result as f32 / map_size.pow(2) as f32) * 255.0) as u8;
-                    buffer.push(value);
-                }
-            }
+                       for row in 0..map_size {
+                           for col in 0..map_size {
+                               let a = row ^ col;
+                               // Interleave bits of `a` with bits of y coordinate in reverse order
+                               let mut result: u64 = 0;
+                               let mut bit = 0;
+                               let mut mask = power as i32 - 1;
+                               loop {
+                                   if bit >= 2 * power {
+                                       break;
+                                   }
+                                   result |= (((col >> mask) & 1) << bit) as u64;
+                                   bit += 1;
+                                   result |= (((a >> mask) & 1) << bit) as u64;
+                                   bit += 1;
+                                   mask -= 1;
+                               }
+                               let value = ((result as f32 / map_size.pow(2) as f32) * 255.0) as u8;
+                               buffer.push(value);
+                           }
+                       }
 
-            let mut image = Image::new(
-                Extent3d {
-                    width: map_size,
-                    height: map_size,
-                    depth_or_array_layers: 1,
-                },
-                TextureDimension::D2,
-                buffer,
-                TextureFormat::R8Unorm,
-                RenderAssetUsages::RENDER_WORLD,
-            );
-            image.texture_descriptor.usage = TextureUsages::COPY_DST
-                | TextureUsages::STORAGE_BINDING
-                | TextureUsages::TEXTURE_BINDING;
-            let mut desc = ImageSamplerDescriptor::nearest();
-            desc.address_mode_u = ImageAddressMode::Repeat;
-            desc.address_mode_v = ImageAddressMode::Repeat;
-            desc.address_mode_w = ImageAddressMode::Repeat;
-            image.sampler = ImageSampler::Descriptor(desc);
+                       let mut image = Image::new(
+                           Extent3d {
+                               width: map_size,
+                               height: map_size,
+                               depth_or_array_layers: 1,
+                           },
+                           TextureDimension::D2,
+                           buffer,
+                           TextureFormat::R8Unorm,
+                           RenderAssetUsages::RENDER_WORLD,
+                       );
+                       image.texture_descriptor.usage = TextureUsages::COPY_DST
+                           | TextureUsages::STORAGE_BINDING
+                           | TextureUsages::TEXTURE_BINDING;
+                       let mut desc = ImageSamplerDescriptor::nearest();
+                       desc.address_mode_u = ImageAddressMode::Repeat;
+                       desc.address_mode_v = ImageAddressMode::Repeat;
+                       desc.address_mode_w = ImageAddressMode::Repeat;
+                       image.sampler = ImageSampler::Descriptor(desc);
 
 
-            
-            let dither_handle = images.add(image);
- */
+
+                       let dither_handle = images.add(image);
+            */
             let dither_handle = asset_server.load_with_settings::<Image, ImageLoaderSettings>(
                 "textures/psx_dither.png",
                 |settings| {
@@ -278,9 +274,8 @@ pub fn setup_camera(
                         min_filter: ImageFilterMode::Nearest,
                         ..default()
                     });
-                }
+                },
             );
-
 
             commands.spawn((
                 Mesh2d(quad_handle),
@@ -378,15 +373,27 @@ pub fn scale_render_image(
                         UVec2::ZERO
                     };
 
+                    let window_extent =
+                        UVec2::new(window.physical_width(), window.physical_height());
+                    let mut viewport_size = window_size;
+                    viewport_size.x = viewport_size
+                        .x
+                        .min(window_extent.x.saturating_sub(window_position.x));
+                    viewport_size.y = viewport_size
+                        .y
+                        .min(window_extent.y.saturating_sub(window_position.y));
+                    viewport_size.x = viewport_size.x.max(1);
+                    viewport_size.y = viewport_size.y.max(1);
+
                     texture_transform.scale = Vec3::new(scale_width, scale_height, 1.0);
-/* 
-                    println!("texture_transform.scale: {}", texture_transform.scale);
-                    println!("window_size: {}", window_size);
-                    println!("screen_size: {} {}", screen_width, screen_height);
- */
+                    /*
+                                       println!("texture_transform.scale: {}", texture_transform.scale);
+                                       println!("window_size: {}", window_size);
+                                       println!("screen_size: {} {}", screen_width, screen_height);
+                    */
                     texture_transform.scale = Vec3::ONE * 1.;
                     camera.viewport = Some(Viewport {
-                        physical_size: window_size,
+                        physical_size: viewport_size,
                         physical_position: window_position,
                         ..Default::default()
                     });
@@ -396,4 +403,45 @@ pub fn scale_render_image(
     }
 }
 
+pub fn render_image_scale2(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut images: ResMut<Assets<Image>>,
+    mut pixel_meshes: Query<&Mesh2d, With<RenderImage>>,
+    mut pixel_cameras: Query<&mut PsxCamera>,
+    mut cameras: Query<&mut Camera>,
+    windows: Query<&Window>,
+) {
+    for window in windows.iter() {
+        for mut psx_camera in pixel_cameras.iter_mut() {
+            for mut camera in cameras.iter_mut() {
+                if let Some(image_handle) = camera.target.as_image() {
+                    if let Some(image) = images.get_mut(image_handle) {
+                        let window_size = UVec2::new(
+                            window.resolution.physical_width(),
+                            window.resolution.physical_height(),
+                        );
 
+                        let size = Extent3d {
+                            width: window_size.x / 2,
+                            height: window_size.y / 2,
+                            ..default()
+                        };
+
+                        if image.size() != UVec2::new(size.width, size.height) {
+                            psx_camera.size = UVec2::new(size.width, size.height);
+                            image.resize(size);
+                            for pixel_mesh in pixel_meshes.iter() {
+                                if let Some(mesh) = meshes.get_mut(pixel_mesh.0.id()) {
+                                    *mesh = Mesh::from(Rectangle::new(
+                                        (size.width * 2) as f32,
+                                        (size.height * 2) as f32,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

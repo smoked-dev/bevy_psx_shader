@@ -1,11 +1,4 @@
-use bevy::{
-    prelude::*,
-    reflect::TypePath,
-    render::render_resource::*,
-    sprite::Material2d
-};
-
-
+use bevy::{prelude::*, reflect::TypePath, render::render_resource::*, sprite::Material2d};
 
 pub const PSX_FRAG_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(310591614790536);
 pub const PSX_DITH_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(210541614790536);
@@ -13,14 +6,13 @@ pub const PSX_DITHER_HANDLE: Handle<Image> = Handle::weak_from_u128(510291613494
 pub const PSX_VERT_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(120592519790135);
 pub const PSX_LUT_HANDLE: Handle<Image> = Handle::weak_from_u128(120592519790132);
 
-
-impl Material for PsxMaterial{
+impl Material for PsxMaterial {
     fn fragment_shader() -> ShaderRef {
         ShaderRef::Handle(PSX_FRAG_SHADER_HANDLE)
     }
 
     fn vertex_shader() -> ShaderRef {
-    ShaderRef::Handle(PSX_VERT_SHADER_HANDLE)
+        ShaderRef::Handle(PSX_VERT_SHADER_HANDLE)
     }
 
     fn alpha_mode(&self) -> AlphaMode {
@@ -104,7 +96,7 @@ pub struct PsxDitherMaterial {
 impl Default for PsxDitherMaterial {
     fn default() -> Self {
         Self {
-            replace_color: Vec3::new(0.,0.,0.),
+            replace_color: Vec3::new(0., 0., 0.),
             mult_color: Vec3::ONE,
             dither_amount: 8.0,
             dither_color_texture: Some(PSX_DITHER_HANDLE),
@@ -114,7 +106,6 @@ impl Default for PsxDitherMaterial {
         }
     }
 }
-
 
 /// A look-up texture. Maps colors to colors. Useful for colorschemes.
 #[derive(Debug, Component, Clone)]

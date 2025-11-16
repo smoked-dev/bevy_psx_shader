@@ -20,11 +20,12 @@ fn main() {
         .insert_resource(DefaultOpaqueRendererMethod::deferred())
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
-    //    .add_plugins(DefaultPlugins)
+        //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
-        .add_systems(Startup,setup)
-    //    .add_systems(Update,rotate)
-    //    .add_systems(Update,render_image_scale2.after(scale_render_image))
+        .add_systems(Startup, setup)
+        .add_systems(Update, orbit_psx_camera)
+        //    .add_systems(Update,rotate)
+        //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
 }
 
@@ -33,32 +34,36 @@ fn main() {
 /// Set up a simple 3D scene
 fn setup(
     mut commands: Commands,
- //   _meshes: ResMut<Assets<Mesh>>,
+    //   _meshes: ResMut<Assets<Mesh>>,
     mut _materials: ResMut<Assets<PsxMaterial>>,
     mut smaterials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut water_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, Water>>>,
 ) {
-    commands.spawn((PsxCamera::new(
-        UVec2::new(1920 /4 , 1080 /4),
-        None,
-        Color::srgba(0.,0.,0.,1.),
-        true,
-        32.,
-        45.,
-        1
-    ), Bloom::default()));
+    commands.spawn((
+        PsxCamera::new(
+            UVec2::new(1920 / 4, 1080 / 4),
+            None,
+            Color::srgba(0., 0., 0., 1.),
+            true,
+            32.,
+            45.,
+            1,
+        ),
+        Bloom::default(),
+        OrbitingCamera,
+    ));
     let transform =
-    Transform::from_scale(Vec3::splat(0.20)).with_translation(Vec3::new(0.0, -3.5, -10.0));
-/*     commands.spawn((
+        Transform::from_scale(Vec3::splat(0.20)).with_translation(Vec3::new(0.0, -3.5, -10.0));
+    /*     commands.spawn((
         MaterialMeshBundle {
             mesh: asset_server.load("dvaBlender.glb#Mesh2/Primitive0"),
             material: materials.add(PsxMaterial {
                 color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                snap_amount: 10.0,  
-                fog_distance: Vec2::new(250.0, 750.0), 
-                
+                snap_amount: 10.0,
+                fog_distance: Vec2::new(250.0, 750.0),
+
                 ..Default::default()
             }),
             transform,
@@ -71,9 +76,9 @@ fn setup(
             mesh: asset_server.load("dvaBlender.glb#Mesh0/Primitive0"),
             material: materials.add(PsxMaterial {
                 color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                snap_amount: 10.0,  
-                fog_distance: Vec2::new(250.0, 750.0), 
-                
+                snap_amount: 10.0,
+                fog_distance: Vec2::new(250.0, 750.0),
+
                 ..Default::default()
             }),
             transform,
@@ -89,9 +94,9 @@ fn setup(
                // color_texture load from gltf
                // color_texture: Some(asset_server.load("crate.png")),
                 color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                snap_amount: 10.0,  
-                fog_distance: Vec2::new(250.0, 750.0), 
-                
+                snap_amount: 10.0,
+                fog_distance: Vec2::new(250.0, 750.0),
+
                 ..Default::default()
             }),
             transform,
@@ -140,11 +145,13 @@ fn setup(
         PointLight::default(),
         Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
     ));
-
 }
 
 #[derive(Component)]
 struct Rotates;
+
+#[derive(Component)]
+struct OrbitingCamera;
 
 /// Rotates any entity around the x and y axis
 #[allow(dead_code)]
@@ -156,6 +163,16 @@ fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
         // transform.rotate_z(0.95 * time.delta_seconds());
     }
 }
+
+fn orbit_psx_camera(time: Res<Time>, mut query: Query<&mut Transform, With<OrbitingCamera>>) {
+    let angle = time.elapsed_secs() * 0.3;
+    let x_radius = 0.4;
+    let y_radius = 0.25;
+    for mut transform in &mut query {
+        let z = transform.translation.z;
+        transform.translation = Vec3::new(angle.cos() * x_radius, angle.sin() * y_radius, z);
+    }
+}
 /* pub fn render_image_scale2(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -165,19 +182,19 @@ fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
     mut cameras: Query<&mut Camera>,
     windows: Query<&Window>,
 ) {
-    if time.elapsed_seconds() < 2. {
+    if time.elapsed_secs() < 2. {
         return;
     }
 
     for window in windows.iter() {
-        
+
 
         for mut psx_camera in pixel_cameras.iter_mut() {
             for mut camera in cameras.iter_mut() {
                 if let Some(image_handle) = camera.target.as_image() {
                     if let Some(image) = images.get_mut(image_handle) {
                         let window_size = UVec2::new(window.resolution.physical_width(), window.resolution.physical_height());
-    
+
 
 
                         let size = Extent3d {
@@ -190,7 +207,7 @@ fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
                         if image.size() != UVec2::new(size.width, size.height) {
                             psx_camera.size = UVec2::new(size.width, size.height);
                             println!("FAG");
-                            image.resize(size);    
+                            image.resize(size);
                             for pixel_mesh in pixel_meshes.iter() {
                                 if let Some(mesh) = meshes.get_mut(pixel_mesh.0.clone()) {
                                     *mesh = Mesh::from(Rectangle::new(
@@ -255,7 +272,6 @@ fn spawn_water(
     ));
 }
 
-
 /// A custom [`ExtendedMaterial`] that creates animated water ripples.
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct Water {
@@ -282,7 +298,6 @@ struct WaterSettings {
     /// How high the waves are in each octave.
     octave_strengths: Vec4,
 }
-
 
 impl MaterialExtension for Water {
     fn deferred_fragment_shader() -> ShaderRef {

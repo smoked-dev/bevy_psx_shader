@@ -7,17 +7,13 @@ use bevy::{
     asset::{load_internal_asset, load_internal_binary_asset},
     image::{CompressedImageFormats, ImageSampler, ImageType},
     prelude::*,
-    render::{
-        camera::ScalingMode,
-        render_asset::RenderAssetUsages,
-        view::VisibleEntities,
-    },
+    render::{camera::ScalingMode, render_asset::RenderAssetUsages, view::VisibleEntities},
 };
 use noisy_bevy::NoisyShaderPlugin;
 
 use crate::material::{
     PsxDitherMaterial, PsxMaterial, PSX_DITHER_HANDLE, PSX_DITH_SHADER_HANDLE,
-    PSX_FRAG_SHADER_HANDLE, PSX_VERT_SHADER_HANDLE, PSX_LUT_HANDLE
+    PSX_FRAG_SHADER_HANDLE, PSX_LUT_HANDLE, PSX_VERT_SHADER_HANDLE,
 };
 
 pub fn image_load(bytes: &[u8], _unused: String) -> Image {
@@ -49,14 +45,13 @@ impl Plugin for PsxPlugin {
             .register_type::<ScalingMode>()
             .register_type::<Aabb>()
             .add_systems(PreUpdate, camera::setup_camera)
-            .add_systems(Update,camera::scale_render_image)
-            ;
-
+            .add_systems(Update, camera::scale_render_image)
+            .add_systems(Update, camera::render_image_scale2)
+        ;
 
         load_internal_binary_asset!(app, PSX_DITHER_HANDLE, "psx-dith.png", image_load);
 
         load_internal_binary_asset!(app, PSX_LUT_HANDLE, "neutral.png", image_load);
-
 
         load_internal_asset!(
             app,
