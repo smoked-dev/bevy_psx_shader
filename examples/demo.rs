@@ -1,31 +1,23 @@
-use bevy::{core_pipeline::bloom::BloomSettings, prelude::*, render::render_resource::Extent3d, sprite::Mesh2dHandle};
-use bevy_psx::{camera::{scale_render_image, PsxCamera, RenderImage}, material::PsxMaterial, PsxPlugin};
-
-
-use std::ops::Range;
+use bevy::{core_pipeline::bloom::Bloom, prelude::*};
+use bevy_psx::{camera::PsxCamera, material::PsxMaterial, PsxPlugin};
 
 use bevy::{
-    color::palettes::css::{BLACK, WHITE},
-    core_pipeline::{fxaa::Fxaa, Skybox},
-    input::mouse::MouseWheel,
-    math::{vec3, vec4},
-    pbr::{
-        DefaultOpaqueRendererMethod, ExtendedMaterial, MaterialExtension,
-        ScreenSpaceReflectionsBundle, ScreenSpaceReflectionsSettings,
+    color::palettes::css::BLACK,
+    image::{
+        ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
+        ImageSamplerDescriptor,
     },
-    prelude::*,
+    math::vec4,
+    pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial, MaterialExtension, MeshMaterial3d},
     render::{
+        mesh::Mesh3d,
         render_resource::{AsBindGroup, ShaderRef, ShaderType},
-        texture::{
-            ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
-            ImageSamplerDescriptor,
-        },
+        texture::ImagePlugin,
     },
 };
 fn main() {
     App::new()
         .insert_resource(DefaultOpaqueRendererMethod::deferred())
-        .insert_resource(Msaa::Off)
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
         .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
     //    .add_plugins(DefaultPlugins)
@@ -42,7 +34,7 @@ fn main() {
 fn setup(
     mut commands: Commands,
  //   _meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<PsxMaterial>>,
+    mut _materials: ResMut<Assets<PsxMaterial>>,
     mut smaterials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -51,12 +43,12 @@ fn setup(
     commands.spawn((PsxCamera::new(
         UVec2::new(1920 /4 , 1080 /4),
         None,
-        Color::rgba(0.,0.,0.,1.),
+        Color::srgba(0.,0.,0.,1.),
         true,
         32.,
         45.,
         1
-    ), BloomSettings::default()));
+    ), Bloom::default()));
     let transform =
     Transform::from_scale(Vec3::splat(0.20)).with_translation(Vec3::new(0.0, -3.5, -10.0));
 /*     commands.spawn((
@@ -115,49 +107,39 @@ fn setup(
     );
 
     commands.spawn((
-        MaterialMeshBundle {
-            mesh: asset_server.load("dvaBlender.glb#Mesh2/Primitive0"),
-            material: smaterials.add(StandardMaterial {
-                base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                perceptual_roughness: 0.,
-                ..Default::default()
-            }),
-            transform,
-            ..default()
-        },
+        Mesh3d(asset_server.load("dvaBlender.glb#Mesh2/Primitive0")),
+        MeshMaterial3d(smaterials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
+            perceptual_roughness: 0.,
+            ..Default::default()
+        })),
+        transform,
         Rotates,
     ));
     commands.spawn((
-        MaterialMeshBundle {
-            mesh: asset_server.load("dvaBlender.glb#Mesh0/Primitive0"),
-            material: smaterials.add(StandardMaterial {
-                base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                perceptual_roughness: 0.,
-                ..Default::default()
-            }),
-            transform,
-            ..default()
-        },
+        Mesh3d(asset_server.load("dvaBlender.glb#Mesh0/Primitive0")),
+        MeshMaterial3d(smaterials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
+            perceptual_roughness: 0.,
+            ..Default::default()
+        })),
+        transform,
         Rotates,
     ));
     commands.spawn((
-        MaterialMeshBundle {
-            //import from gltf dvaBlender.glb
-            mesh: asset_server.load("dvaBlender.glb#Mesh1/Primitive0"),
-            material: smaterials.add(StandardMaterial {
-                base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
-                perceptual_roughness: 0.,
-                ..Default::default()
-            }),
-            transform,
-            ..default()
-        },
+        Mesh3d(asset_server.load("dvaBlender.glb#Mesh1/Primitive0")),
+        MeshMaterial3d(smaterials.add(StandardMaterial {
+            base_color_texture: Some(asset_server.load("dvaBlender.glb#Texture0")),
+            perceptual_roughness: 0.,
+            ..Default::default()
+        })),
+        transform,
         Rotates,
     ));
-    commands.spawn(PointLightBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
-        ..default()
-    });
+    commands.spawn((
+        PointLight::default(),
+        Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
+    ));
 
 }
 
@@ -165,9 +147,10 @@ fn setup(
 struct Rotates;
 
 /// Rotates any entity around the x and y axis
+#[allow(dead_code)]
 fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
     for mut transform in &mut query {
-        transform.rotate_y(0.95 * time.delta_seconds());
+        transform.rotate_y(0.95 * time.delta_secs());
         // transform.scale = Vec3::splat(0.25);
         // transform.rotate_x(0.95 * time.delta_seconds());
         // transform.rotate_z(0.95 * time.delta_seconds());
@@ -234,9 +217,9 @@ fn spawn_water(
     meshes: &mut Assets<Mesh>,
     water_materials: &mut Assets<ExtendedMaterial<StandardMaterial, Water>>,
 ) {
-    commands.spawn(MaterialMeshBundle {
-        mesh: meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(1.0))),
-        material: water_materials.add(ExtendedMaterial {
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::new(Vec3::Y, Vec2::splat(1.0)))),
+        MeshMaterial3d(water_materials.add(ExtendedMaterial {
             base: StandardMaterial {
                 base_color: BLACK.into(),
                 perceptual_roughness: 0.0,
@@ -267,10 +250,9 @@ fn spawn_water(
                     octave_strengths: vec4(0.16, 0.18, 0.093, 0.044),
                 },
             },
-        }),
-        transform: Transform::from_scale(Vec3::splat(100.0)).with_translation(Vec3::Y * -1.),
-        ..default()
-    });
+        })),
+        Transform::from_scale(Vec3::splat(100.0)).with_translation(Vec3::Y * -1.),
+    ));
 }
 
 

@@ -5,12 +5,11 @@ use bevy::render::primitives::Aabb;
 use bevy::sprite::Material2dPlugin;
 use bevy::{
     asset::{load_internal_asset, load_internal_binary_asset},
+    image::{CompressedImageFormats, ImageSampler, ImageType},
     prelude::*,
     render::{
-        
-        render_asset::RenderAssetUsages,
         camera::ScalingMode,
-        texture::{CompressedImageFormats, ImageSampler, ImageType},
+        render_asset::RenderAssetUsages,
         view::VisibleEntities,
     },
 };

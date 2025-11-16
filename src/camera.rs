@@ -3,16 +3,26 @@
 use std::f32::consts::PI;
 
 use bevy::{
-    pbr::ScreenSpaceReflectionsBundle, prelude::*, render::{
-        camera::{Exposure, PhysicalCameraParameters, RenderTarget, Viewport}, render_asset::RenderAssetUsages, render_resource::{
+    image::{
+        BevyDefault, ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
+        ImageSamplerDescriptor,
+    },
+    pbr::ScreenSpaceReflections,
+    prelude::*,
+    render::{
+        camera::{Exposure, PhysicalCameraParameters, RenderTarget, Viewport},
+        mesh::Mesh2d,
+        render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-        }, texture::{BevyDefault, ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor}, view::RenderLayers
-    }, sprite::MaterialMesh2dBundle, window::PrimaryWindow
+            TextureViewDescriptor, TextureViewDimension,
+        },
+        view::RenderLayers,
+    },
+    sprite::MeshMaterial2d,
+    window::PrimaryWindow,
 };
 
-use bevy::render::render_resource::*;
-
-use crate::material::{Lut, PsxDitherMaterial, PSX_LUT_HANDLE};
+use crate::material::{PsxDitherMaterial, PSX_LUT_HANDLE};
 
 #[derive(Component)]
 pub struct PsxCamera {
@@ -165,61 +175,36 @@ pub fn setup_camera(
             let image_handle = images.add(image);
 
             // The camera we are actually rendering to
-            let camera = if pixel_camera.hdr {
-                Camera3dBundle {
-                    tonemapping: bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
-                    camera: Camera {
-                        target: RenderTarget::Image(image_handle.clone()),
-                        clear_color: ClearColorConfig::Custom(Color::rgba(0.,0.,0.,0.)),
-                        hdr: true,
-                        ..default()
-                    },
-                    camera_3d: Camera3d {
-                    //    clear_color: ClearColorConfig::Custom(pixel_camera.clear_color),
-                        ..default()
-                    },
-                    projection: Projection::Perspective(PerspectiveProjection {
-                        fov: pixel_camera.fov * PI / 180.,
-                        near: 0.01,
-                        ..default()
-                    }),
-                    exposure: Exposure::from_physical_camera(PhysicalCameraParameters {
-                        aperture_f_stops: 1.0,
-                        shutter_speed_s: 1. / 31.,
-                        sensitivity_iso: 500.,
-                        ..Default::default()
-                    }), 
-                    ..Default::default()
-                }
-            } else {
-                Camera3dBundle {
-                    tonemapping: bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
-                    camera: Camera {
-                        target: RenderTarget::Image(image_handle.clone()),
-                        clear_color: ClearColorConfig::Custom(Color::rgba(0.,0.,0.,0.)),
-                        hdr: false,
-                        ..default()
-                    },
-                    projection: Projection::Perspective(PerspectiveProjection {
-                        fov: pixel_camera.fov * PI / 180.,
-                        near: 0.01,
-                        ..default()
-                    }),
-                    exposure: Exposure::from_physical_camera(PhysicalCameraParameters {
-                        aperture_f_stops: 1.0,
-                        shutter_speed_s: 1. / 31.,
-                        sensitivity_iso: 500.,
-                        ..Default::default()
-                    }), 
-                    ..Default::default()
-                }
+            let projection = Projection::Perspective(PerspectiveProjection {
+                fov: pixel_camera.fov * PI / 180.,
+                near: 0.01,
+                ..default()
+            });
+            let exposure = Exposure::from_physical_camera(PhysicalCameraParameters {
+                aperture_f_stops: 1.0,
+                shutter_speed_s: 1. / 31.,
+                sensitivity_iso: 500.,
+                ..Default::default()
+            });
+            let camera = Camera {
+                target: RenderTarget::Image(image_handle.clone()),
+                clear_color: ClearColorConfig::Custom(Color::srgba(0.,0.,0.,0.)),
+                hdr: pixel_camera.hdr,
+                ..default()
             };
 
             commands
                 .entity(entity)
-            //    .insert()
-                //.insert((UiCameraConfig { show_ui: false }, camera));
-                .insert((Visibility::Hidden, camera, ScreenSpaceReflectionsBundle::default()));
+                .insert((
+                    Visibility::Hidden,
+                    Transform::default(),
+                    Camera3d::default(),
+                    projection,
+                    exposure,
+                    camera,
+                    ScreenSpaceReflections::default(),
+                    bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
+                ));
 
             let render_layer = 3 ;
             let ui_layer = render_layer - 1;
@@ -298,54 +283,46 @@ pub fn setup_camera(
 
 
             commands.spawn((
-                MaterialMesh2dBundle {
-                    mesh: quad_handle.into(),
-                    material: materials.add(PsxDitherMaterial {
-                        dither_amount: pixel_camera.dither_amount,
-                        banding_enabled: pixel_camera.banding_enabled,
-                        color_texture: Some(image_handle),
-                        dither_color_texture: Some(dither_handle),
-                        ..Default::default()
-                    }),
-                    transform: Transform { ..default() },
-                    ..default()
-                },
+                Mesh2d(quad_handle),
+                MeshMaterial2d(materials.add(PsxDitherMaterial {
+                    dither_amount: pixel_camera.dither_amount,
+                    banding_enabled: pixel_camera.banding_enabled,
+                    color_texture: Some(image_handle),
+                    dither_color_texture: Some(dither_handle),
+                    ..Default::default()
+                })),
+                Transform::default(),
                 RenderLayers::layer(render_layer),
                 RenderImage,
             ));
 
             commands.spawn((
-                Camera2dBundle {
-                    camera: Camera {
-                        viewport: Some(Viewport {
-                            physical_size: UVec2 {
-                                x: pixel_camera.size.x,
-                                y: pixel_camera.size.y,
-                            },
-                            ..Default::default()
-                        }),
-                        // renders after the first main camera which has default value: 0.
-                        order: 1,
-                        ..default()
-                    },
-                    ..Camera2dBundle::default()
+                Camera2d,
+                Camera {
+                    viewport: Some(Viewport {
+                        physical_size: UVec2 {
+                            x: pixel_camera.size.x,
+                            y: pixel_camera.size.y,
+                        },
+                        ..Default::default()
+                    }),
+                    // renders after the first main camera which has default value: 0.
+                    order: 1,
+                    ..default()
                 },
+                Transform::default(),
                 RenderLayers::layer(render_layer),
                 FinalCameraTag,
-                //UiCameraConfig { show_ui: false },
             ));
             commands.spawn((
-                Camera2dBundle {
-                    camera: Camera {
-
-                        // renders after the camera that draws the texture
-                        order: 2,
-                        clear_color: ClearColorConfig::None,
-                        ..default()
-                    },
-                    camera_2d: Camera2d {},
-                    ..Default::default()
+                Camera2d,
+                Camera {
+                    // renders after the camera that draws the texture
+                    order: 2,
+                    clear_color: ClearColorConfig::None,
+                    ..default()
                 },
+                Transform::default(),
                 RenderLayers::layer(ui_layer),
             ));
         }
