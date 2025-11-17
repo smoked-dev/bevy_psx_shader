@@ -445,3 +445,14 @@ pub fn render_image_scale2(
         }
     }
 }
+
+pub fn poke_material(
+ //   target_mat: Res<MyFullscreenMat>, // Handle<StandardMaterial> or MeshMaterial2d
+    mut std_mats: ResMut<Assets<crate::material::PsxDitherMaterial>>,
+) {
+    // A harmless get_mut is enough to flag it as changed for the frame.
+    // let _ = std_mats.get_mut(&target_mat.0);
+    for mat in std_mats.iter_mut() {
+        
+    }
+}

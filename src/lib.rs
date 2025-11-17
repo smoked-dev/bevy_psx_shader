@@ -47,7 +47,7 @@ impl Plugin for PsxPlugin {
             .add_systems(PreUpdate, camera::setup_camera)
             .add_systems(Update, camera::scale_render_image)
             .add_systems(Update, camera::render_image_scale2)
-        ;
+            .add_systems(Update, camera::poke_material);
 
         load_internal_binary_asset!(app, PSX_DITHER_HANDLE, "psx-dith.png", image_load);
 
