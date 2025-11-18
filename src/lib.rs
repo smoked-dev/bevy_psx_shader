@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod fog;
 pub mod material;
 
 use bevy::render::primitives::Aabb;
@@ -9,11 +10,13 @@ use bevy::{
     prelude::*,
     render::{camera::ScalingMode, render_asset::RenderAssetUsages, view::VisibleEntities},
 };
-use noisy_bevy::NoisyShaderPlugin;
 
-use crate::material::{
-    PsxDitherMaterial, PsxMaterial, PSX_DITHER_HANDLE, PSX_DITH_SHADER_HANDLE,
-    PSX_FRAG_SHADER_HANDLE, PSX_LUT_HANDLE, PSX_VERT_SHADER_HANDLE,
+use crate::{
+    fog::FogPlugin,
+    material::{
+        PsxDitherMaterial, PsxMaterial, PSX_DITHER_HANDLE, PSX_DITH_SHADER_HANDLE,
+        PSX_FRAG_SHADER_HANDLE, PSX_LUT_HANDLE, PSX_VERT_SHADER_HANDLE,
+    },
 };
 
 pub fn image_load(bytes: &[u8], _unused: String) -> Image {
@@ -35,7 +38,7 @@ impl Plugin for PsxPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MaterialPlugin::<PsxMaterial>::default());
         app.add_plugins(Material2dPlugin::<PsxDitherMaterial>::default());
-        app.add_plugins(NoisyShaderPlugin);
+        app.add_plugins(FogPlugin);
         app.register_type::<Camera>()
             .register_type::<Visibility>()
             .register_type::<InheritedVisibility>()
