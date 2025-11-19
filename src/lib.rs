@@ -1,5 +1,4 @@
 pub mod camera;
-pub mod fog;
 pub mod material;
 
 use bevy::render::primitives::Aabb;
@@ -12,7 +11,6 @@ use bevy::{
 };
 
 use crate::{
-    fog::FogPlugin,
     material::{
         PsxDitherMaterial, PsxMaterial, PSX_DITHER_HANDLE, PSX_DITH_SHADER_HANDLE,
         PSX_FRAG_SHADER_HANDLE, PSX_LUT_HANDLE, PSX_VERT_SHADER_HANDLE,
@@ -38,7 +36,6 @@ impl Plugin for PsxPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MaterialPlugin::<PsxMaterial>::default());
         app.add_plugins(Material2dPlugin::<PsxDitherMaterial>::default());
-        app.add_plugins(FogPlugin);
         app.register_type::<Camera>()
             .register_type::<Visibility>()
             .register_type::<InheritedVisibility>()
