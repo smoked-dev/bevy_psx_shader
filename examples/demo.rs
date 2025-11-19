@@ -1,11 +1,12 @@
 use bevy::{
     asset::{AssetMetaCheck, AssetPlugin},
     core_pipeline::bloom::Bloom,
-    prelude::*, render::view::NoFrustumCulling,
+    prelude::*,
+    render::view::NoFrustumCulling,
+    window::{PresentMode, Window, WindowPlugin},
 };
 use bevy_psx::{
     camera::PsxCamera,
-    fog::{FogSphere, FogSphereMaterial, FogSphereSettings},
     material::PsxMaterial,
     PsxPlugin,
 };
@@ -28,21 +29,38 @@ fn main() {
     App::new()
     //    .insert_resource(DefaultOpaqueRendererMethod::deferred())
         .add_plugins({
-            let mut plugins = DefaultPlugins.set(ImagePlugin::default_nearest());
-/*             #[cfg(target_arch = "wasm32")]
+            let mut plugins = DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some({
+                        let mut window = Window {
+                            present_mode: PresentMode::AutoVsync,
+                            fit_canvas_to_parent: true,
+                            ..default()
+                        };
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            window.canvas = Some("#bevy-canvas".into());
+                            window.prevent_default_event_handling = false;
+                        }
+                        window
+                    }),
+                    ..default()
+                })
+                .set(ImagePlugin::default_nearest());
+            #[cfg(target_arch = "wasm32")]
             {
                 plugins = plugins.set(AssetPlugin {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
                 });
-            } */
+            }
             plugins
         })
         .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
         //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (configure_fog_sphere, orbit_psx_camera))
+        .add_systems(Update, (orbit_psx_camera))
         //    .add_systems(Update,rotate)
         //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
@@ -59,9 +77,7 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut water_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, Water>>>,
-    mut fog_settings: ResMut<FogSphereSettings>,
 ) {
-    fog_settings.radius = 20.0;
     commands.spawn((
         PsxCamera::new(
             UVec2::new(1920 / 2, 1080 / 2),
@@ -195,32 +211,6 @@ fn orbit_psx_camera(time: Res<Time>, mut query: Query<&mut Transform, With<Orbit
     for mut transform in &mut query {
         let z = transform.translation.z;
         transform.translation = Vec3::new(angle.cos() * x_radius, angle.sin() * y_radius + 2., 10.);
-    }
-}
-
-fn configure_fog_sphere(
-    mut configured: Local<bool>,
-    fogs: Query<&FogSphere>,
-    mut fog_materials: ResMut<Assets<FogSphereMaterial>>,
-) {
-    if *configured {
-        return;
-    }
-
-    let mut changed = false;
-    for fog in fogs.iter() {
-        if let Some(material) = fog_materials.get_mut(&fog.material) {
-            material.fog_color = color_to_vec4(Color::linear_rgb(0.95, 0.98, 1.0));
-            material.sky_color = color_to_vec4(Color::linear_rgb(0.3, 0.35, 0.45));
-            material.fog_data = Vec4::new(0.04, 0.32, 0.9, 0.45);
-            material.depth_range = Vec2::new(0.35, 0.92);
-            material.noise_data = Vec2::new(1.5, 0.5);
-            changed = true;
-        }
-    }
-
-    if changed {
-        *configured = true;
     }
 }
 
