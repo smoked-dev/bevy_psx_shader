@@ -1,6 +1,4 @@
 use bevy::{
-    asset::{AssetMetaCheck, AssetPlugin},
-    core_pipeline::bloom::Bloom,
     prelude::*,
     render::view::NoFrustumCulling,
     window::{PresentMode, Window, WindowPlugin},
@@ -12,18 +10,28 @@ use bevy_psx::{
 };
 
 use bevy::{
+    asset::RenderAssetUsages,
     color::{palettes::css::BLACK, LinearRgba},
     image::{
         ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
         ImageSamplerDescriptor,
     },
     math::{vec4, Vec4},
-    pbr::{DefaultOpaqueRendererMethod, ExtendedMaterial, MaterialExtension, MeshMaterial3d},
+    pbr::{ExtendedMaterial, MaterialExtension, MeshMaterial3d},
     render::{
         mesh::Mesh3d,
-        render_resource::{AsBindGroup, ShaderRef, ShaderType},
+        render_resource::{AsBindGroup, Extent3d, ShaderRef, ShaderType, TextureDimension, TextureFormat},
         texture::ImagePlugin,
     },
+    sprite::SpriteBundle,
+    text::{Text2d, TextFont, TextLayout},
+};
+
+const BUBBLE_WORLD_OFFSET: Vec3 = Vec3::new(0.0, 2.8, 0.0);
+const BUBBLE_TEXTURE_SIZE: Extent3d = Extent3d {
+    width: 512,
+    height: 256,
+    depth_or_array_layers: 1,
 };
 fn main() {
     App::new()
@@ -60,7 +68,7 @@ fn main() {
         //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (orbit_psx_camera))
+        .add_systems(Update, (orbit_psx_camera, face_bubble_to_camera))
         //    .add_systems(Update,rotate)
         //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
@@ -77,6 +85,7 @@ fn setup(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut water_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, Water>>>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     commands.spawn((
         PsxCamera::new(
@@ -149,7 +158,13 @@ fn setup(
     );
  */
     commands.spawn((SceneRoot(asset_server.load("skybox3.glb#Scene0")), Transform::from_scale(Vec3::splat(1.)), NoFrustumCulling));
-    commands.spawn((SceneRoot(asset_server.load("tnua_demon.glb#Scene0")), Transform::IDENTITY));
+    let demon = commands
+        .spawn((
+            SceneRoot(asset_server.load("tnua_demon.glb#Scene0")),
+            Transform::IDENTITY,
+            Demon,
+        ))
+        .id();
 /* 
     commands.spawn((
         Mesh3d(asset_server.load("dvaBlender.glb#Mesh2/Primitive0")),
@@ -185,6 +200,41 @@ fn setup(
         PointLight::default(),
         Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
     ));
+
+    // World-space bubble textured quad above the demon so it goes through the PSX pass.
+    let inter_font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let bubble_texture = make_bubble_texture(&mut images);
+    let bubble_size = Vec2::new(1.5, 0.7);
+
+    let surface = commands
+        .spawn((
+            SpriteBundle {
+                sprite: Sprite {
+                    image: bubble_texture.clone(),
+                    custom_size: Some(bubble_size),
+                    ..default()
+                },
+                transform: Transform::from_translation(BUBBLE_WORLD_OFFSET),
+                ..default()
+            },
+            BubbleSurface,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text2d::new("hello world"),
+                TextFont {
+                    font: inter_font.clone(),
+                    font_size: 24.0,
+                    ..default()
+                },
+                TextLayout::default(),
+                TextColor(Color::WHITE),
+                Transform::from_translation(Vec3::new(0.0, 0.0, 0.01)),
+            ));
+        })
+        .id();
+
+    commands.entity(demon).add_child(surface);
 }
 
 #[derive(Component)]
@@ -192,6 +242,12 @@ struct Rotates;
 
 #[derive(Component)]
 struct OrbitingCamera;
+
+#[derive(Component)]
+struct Demon;
+
+#[derive(Component)]
+struct BubbleSurface;
 
 /// Rotates any entity around the x and y axis
 #[allow(dead_code)]
@@ -209,8 +265,88 @@ fn orbit_psx_camera(time: Res<Time>, mut query: Query<&mut Transform, With<Orbit
     let x_radius = 0.4;
     let y_radius = 0.25;
     for mut transform in &mut query {
-        let z = transform.translation.z;
         transform.translation = Vec3::new(angle.cos() * x_radius, angle.sin() * y_radius + 2., 10.);
+    }
+}
+
+fn make_bubble_texture(images: &mut Assets<Image>) -> Handle<Image> {
+    let width = BUBBLE_TEXTURE_SIZE.width as usize;
+    let height = BUBBLE_TEXTURE_SIZE.height as usize;
+    let mut data = vec![0u8; width * height * 4];
+    let radius = 40.0_f32;
+    let r_sq = radius * radius;
+
+    for y in 0..height {
+        for x in 0..width {
+            let idx = (y * width + x) * 4;
+            let px = x as f32 + 0.5;
+            let py = y as f32 + 0.5;
+
+            let corner_x = if px < radius {
+                radius
+            } else if px > (width as f32 - radius) {
+                width as f32 - radius
+            } else {
+                px
+            };
+            let corner_y = if py < radius {
+                radius
+            } else if py > (height as f32 - radius) {
+                height as f32 - radius
+            } else {
+                py
+            };
+
+            let dx = px - corner_x;
+            let dy = py - corner_y;
+            let dist_sq = dx * dx + dy * dy;
+            let inside = dist_sq <= r_sq;
+
+            let (r, g, b, a) = if inside {
+                // Facebook-ish blue with slight transparency.
+                (23u8, 120u8, 242u8, 240u8)
+            } else {
+                (23u8, 120u8, 242u8, 0u8)
+            };
+
+            data[idx] = r;
+            data[idx + 1] = g;
+            data[idx + 2] = b;
+            data[idx + 3] = a;
+        }
+    }
+
+    let mut image = Image::new(
+        BUBBLE_TEXTURE_SIZE,
+        TextureDimension::D2,
+        data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    );
+    image.sampler = ImageSampler::nearest();
+    images.add(image)
+}
+
+fn face_bubble_to_camera(
+    camera_query: Query<&GlobalTransform, With<PsxCamera>>,
+    demon_query: Query<&GlobalTransform, With<Demon>>,
+    mut surfaces: Query<&mut Transform, With<BubbleSurface>>,
+) {
+    let Ok(cam_transform) = camera_query.get_single() else {
+        return;
+    };
+    let Ok(demon_transform) = demon_query.get_single() else {
+        return;
+    };
+
+    let camera_pos = cam_transform.translation();
+    let demon_pos = demon_transform.translation();
+
+    for mut surface in &mut surfaces {
+        let world_pos = demon_pos + surface.translation;
+        let look_rot =
+            Transform::from_translation(world_pos).looking_at(camera_pos, Vec3::Y).rotation;
+        surface.rotation = look_rot;
     }
 }
 

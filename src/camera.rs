@@ -203,7 +203,6 @@ pub fn setup_camera(
             ));
 
             let render_layer = 3;
-            let ui_layer = render_layer - 1;
 
             let quad_handle = meshes.add(Mesh::from(Rectangle::new(
                 (size.width * 4) as f32,
@@ -282,13 +281,25 @@ pub fn setup_camera(
                 MeshMaterial2d(materials.add(PsxDitherMaterial {
                     dither_amount: pixel_camera.dither_amount,
                     banding_enabled: pixel_camera.banding_enabled,
-                    color_texture: Some(image_handle),
+                    color_texture: Some(image_handle.clone()),
                     dither_color_texture: Some(dither_handle),
                     ..Default::default()
                 })),
                 Transform::default(),
                 RenderLayers::layer(render_layer),
                 RenderImage,
+            ));
+
+            // Render UI into the same offscreen texture as the 3D world.
+            commands.spawn((
+                Camera2d,
+                Camera {
+                    target: RenderTarget::Image(image_handle.clone()),
+                    order: 1,
+                    clear_color: ClearColorConfig::None,
+                    ..default()
+                },
+                Transform::default(),
             ));
 
             commands.spawn((
@@ -308,17 +319,6 @@ pub fn setup_camera(
                 Transform::default(),
                 RenderLayers::layer(render_layer),
                 FinalCameraTag,
-            ));
-            commands.spawn((
-                Camera2d,
-                Camera {
-                    // renders after the camera that draws the texture
-                    order: 2,
-                    clear_color: ClearColorConfig::None,
-                    ..default()
-                },
-                Transform::default(),
-                RenderLayers::layer(ui_layer),
             ));
         }
     }
@@ -406,14 +406,14 @@ pub fn scale_render_image(
 pub fn render_image_scale2(
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
-    mut pixel_meshes: Query<&Mesh2d, With<RenderImage>>,
+    pixel_meshes: Query<&Mesh2d, With<RenderImage>>,
     mut pixel_cameras: Query<&mut PsxCamera>,
     mut cameras: Query<&mut Camera>,
     windows: Query<&Window>,
 ) {
     for window in windows.iter() {
         for mut psx_camera in pixel_cameras.iter_mut() {
-            for mut camera in cameras.iter_mut() {
+            for camera in cameras.iter_mut() {
                 if let Some(image_handle) = camera.target.as_image() {
                     if let Some(image) = images.get_mut(image_handle) {
                         let window_size = UVec2::new(
@@ -452,7 +452,7 @@ pub fn poke_material(
 ) {
     // A harmless get_mut is enough to flag it as changed for the frame.
     // let _ = std_mats.get_mut(&target_mat.0);
-    for mat in std_mats.iter_mut() {
+    for _mat in std_mats.iter_mut() {
         
     }
 }
