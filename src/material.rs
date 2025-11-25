@@ -1,10 +1,24 @@
-use bevy::{prelude::*, reflect::TypePath, render::render_resource::*, sprite::Material2d};
+use std::marker::PhantomData;
 
-pub const PSX_FRAG_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(310591614790536);
-pub const PSX_DITH_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(210541614790536);
-pub const PSX_DITHER_HANDLE: Handle<Image> = Handle::weak_from_u128(510291613494514);
-pub const PSX_VERT_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(120592519790135);
-pub const PSX_LUT_HANDLE: Handle<Image> = Handle::weak_from_u128(120592519790132);
+use bevy::{
+    prelude::*,
+    reflect::TypePath,
+    render::render_resource::*,
+    shader::ShaderRef,
+    sprite_render::Material2d,
+};
+use uuid::Uuid;
+
+pub const PSX_FRAG_SHADER_HANDLE: Handle<Shader> =
+    Handle::Uuid(Uuid::from_u128(310591614790536), PhantomData);
+pub const PSX_DITH_SHADER_HANDLE: Handle<Shader> =
+    Handle::Uuid(Uuid::from_u128(210541614790536), PhantomData);
+pub const PSX_DITHER_HANDLE: Handle<Image> =
+    Handle::Uuid(Uuid::from_u128(510291613494514), PhantomData);
+pub const PSX_VERT_SHADER_HANDLE: Handle<Shader> =
+    Handle::Uuid(Uuid::from_u128(120592519790135), PhantomData);
+pub const PSX_LUT_HANDLE: Handle<Image> =
+    Handle::Uuid(Uuid::from_u128(120592519790132), PhantomData);
 
 impl Material for PsxMaterial {
     fn fragment_shader() -> ShaderRef {

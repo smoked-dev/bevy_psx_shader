@@ -3,22 +3,19 @@
 use std::f32::consts::PI;
 
 use bevy::{
+    camera::{
+        visibility::RenderLayers, Exposure, PhysicalCameraParameters, RenderTarget, Viewport,
+    },
     image::{
-        BevyDefault, ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
-        ImageSamplerDescriptor,
+        ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor,
     },
     pbr::ScreenSpaceReflections,
     prelude::*,
-    render::{
-        camera::{Exposure, PhysicalCameraParameters, RenderTarget, Viewport},
-        mesh::Mesh2d,
-        render_resource::{
-            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-            TextureViewDescriptor, TextureViewDimension,
-        },
-        view::RenderLayers,
+    render::render_resource::{
+        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        TextureViewDescriptor, TextureViewDimension,
     },
-    sprite::MeshMaterial2d,
+    sprite_render::MeshMaterial2d,
     window::PrimaryWindow,
 };
 
@@ -185,9 +182,8 @@ pub fn setup_camera(
                 ..Default::default()
             });
             let camera = Camera {
-                target: RenderTarget::Image(image_handle.clone()),
+                target: RenderTarget::Image(image_handle.clone().into()),
                 clear_color: ClearColorConfig::Custom(Color::srgba(0., 0., 0., 0.)),
-                hdr: pixel_camera.hdr,
                 ..default()
             };
 
@@ -326,14 +322,14 @@ pub fn setup_camera(
 
 pub fn scale_render_image(
     mut texture_query: Query<&mut Transform, With<RenderImage>>,
-    mut camera_query: Query<&mut bevy::render::camera::Camera, With<FinalCameraTag>>,
-    mut psx_camera_query: Query<&PsxCamera>,
+    mut camera_query: Query<&mut Camera, With<FinalCameraTag>>,
+    psx_camera_query: Query<&PsxCamera>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
 ) {
-    if let Ok(mut texture_transform) = texture_query.get_single_mut() {
-        if let Ok(window) = windows.get_single_mut() {
-            if let Ok(mut camera) = camera_query.get_single_mut() {
-                if let Ok(psx_camera) = psx_camera_query.get_single_mut() {
+    if let Ok(mut texture_transform) = texture_query.single_mut() {
+        if let Ok(window) = windows.single_mut() {
+            if let Ok(mut camera) = camera_query.single_mut() {
+                if let Ok(psx_camera) = psx_camera_query.single() {
                     let (screen_width, screen_height) = (psx_camera.size.x, psx_camera.size.y);
                     let aspect_ratio = screen_width as f32 / screen_height as f32;
                     let window_size: UVec2 = if window.physical_height() > window.physical_width()
@@ -406,7 +402,7 @@ pub fn scale_render_image(
 pub fn render_image_scale2(
     mut meshes: ResMut<Assets<Mesh>>,
     mut images: ResMut<Assets<Image>>,
-    mut pixel_meshes: Query<&Mesh2d, With<RenderImage>>,
+    pixel_meshes: Query<&Mesh2d, With<RenderImage>>,
     mut pixel_cameras: Query<&mut PsxCamera>,
     mut cameras: Query<&mut Camera>,
     windows: Query<&Window>,

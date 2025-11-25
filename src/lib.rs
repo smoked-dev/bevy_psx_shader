@@ -1,13 +1,13 @@
 pub mod camera;
 pub mod material;
 
-use bevy::render::primitives::Aabb;
-use bevy::sprite::Material2dPlugin;
+use bevy::camera::primitives::Aabb;
+use bevy::sprite_render::Material2dPlugin;
 use bevy::{
-    asset::{load_internal_asset, load_internal_binary_asset},
+    asset::{load_internal_asset, load_internal_binary_asset, RenderAssetUsages},
     image::{CompressedImageFormats, ImageSampler, ImageType},
     prelude::*,
-    render::{camera::ScalingMode, render_asset::RenderAssetUsages, view::VisibleEntities},
+    camera::ScalingMode,
 };
 
 use crate::{
@@ -41,7 +41,6 @@ impl Plugin for PsxPlugin {
             .register_type::<InheritedVisibility>()
             .register_type::<ViewVisibility>()
             .register_type::<OrthographicProjection>()
-            .register_type::<VisibleEntities>()
             .register_type::<ScalingMode>()
             .register_type::<Aabb>()
             .add_systems(PreUpdate, camera::setup_camera)
