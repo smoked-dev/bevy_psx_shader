@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bevy PSX Demo (Web)</title>
+    <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"></script>
+    <style>
+        :root {
+            --bg: #05060c;
+            --panel: rgba(10, 14, 22, 0.86);
+            --panel-border: #2de4c6;
+            --panel-soft: #103838;
+            --text: #c8f7f4;
+            --muted: #7ad3c4;
+            --accent: #ffe983;
+            font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(28, 210, 180, 0.14), transparent 45%),
+                        radial-gradient(circle at 80% 30%, rgba(255, 233, 131, 0.16), transparent 35%),
+                        linear-gradient(135deg, rgba(8, 10, 18, 0.75), rgba(6, 8, 14, 0.95));
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #bevy-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 0;
+            background: #000;
+        }
+
+        .overlay {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
+            padding: 12px 8vw 12px 14vw; /* nudge the panel right while leaving breathing room */
+            pointer-events: none;
+        }
+
+        .bbs-shell {
+            position: relative;
+            width: min(640px, 34vw);
+            min-width: 360px;
+            height: calc(100vh - 24px);
+            min-height: 0;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 0 32px rgba(45, 228, 198, 0.25), inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: auto;
+        }
+
+        .bbs-shell::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.04),
+                rgba(255, 255, 255, 0.04) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .bbs-shell::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            box-shadow: inset 0 0 0 1px rgba(7, 18, 22, 0.85);
+            pointer-events: none;
+        }
+
+        .bbs-header {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(45, 228, 198, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.9rem;
+        }
+
+        .bbs-header .title {
+            color: var(--panel-border);
+            font-weight: 700;
+        }
+
+        .bbs-header .status {
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .blink {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--panel-border);
+            box-shadow: 0 0 10px var(--panel-border);
+            animation: pulse 1.4s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 60%, 100% { opacity: 0.2; }
+            30% { opacity: 1; }
+        }
+
+        .bbs-body {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .bbs-form {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 12px;
+        }
+
+        .bbs-form .full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            display: block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 4px;
+            color: var(--muted);
+        }
+
+        input, select, textarea, button {
+            font: inherit;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 3px;
+            background: #04070f;
+            border: 1px solid #1b2a2a;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--panel-border);
+            box-shadow: 0 0 0 1px rgba(45, 228, 198, 0.25);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            grid-column: 1 / -1;
+            margin-top: 2px;
+        }
+
+        #post-button {
+            background: linear-gradient(90deg, #17c2a6, #2de4c6);
+            color: #05201c;
+            border: 1px solid #2de4c6;
+            padding: 8px 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(45, 228, 198, 0.35);
+        }
+
+        #post-button:hover {
+            filter: brightness(1.1);
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .preview {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .preview-card {
+            background: #050910;
+            border: 1px solid #183232;
+            padding: 10px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px 12px;
+            font-size: 0.95rem;
+        }
+
+        .preview-card .label {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            color: var(--accent);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .preview-card .key {
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.72rem;
+        }
+
+        .preview-card .value {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .preview-card .full {
+            grid-column: 1 / -1;
+        }
+
+        .log {
+            background: #03060d;
+            border: 1px solid #18252a;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            min-height: 0;
+        }
+
+        .log-line {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            color: var(--text);
+        }
+
+        .log-line .time {
+            color: var(--panel-border);
+            font-weight: 700;
+        }
+
+        .log-line .user {
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .log-line .channel {
+            color: var(--muted);
+        }
+
+        .log-line.muted {
+            color: #6f8c8c;
+        }
+
+        @media (max-width: 900px) {
+            .bbs-shell {
+                width: 92vw;
+                min-width: 0;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .bbs-shell {
+                height: auto;
+                max-height: none;
+            }
+            .bbs-body {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .overlay {
+                padding: 12px 4vw;
+            }
+        }
+    </style>
+</head>
+<body>
+<canvas id="bevy-canvas"></canvas>
+<div class="overlay">
+    <div class="bbs-shell">
+        <div class="bbs-header">
+            <div class="title">PSX WAVEBOARD // DATASTAR LINK</div>
+            <div class="status">channel open <span class="blink" aria-hidden="true"></span></div>
+        </div>
+        <div class="bbs-body">
+            <form id="bbs-form" class="bbs-form" autocomplete="off">
+                <div>
+                    <label for="bbs-name">Name</label>
+                    <input id="bbs-name" name="name" data-bind-name data-signals-name="Rogue User" placeholder="enter a display name">
+                </div>
+                <div>
+                    <label for="bbs-handle">Handle</label>
+                    <input id="bbs-handle" name="handle" data-bind-handle data-signals-handle="ghostline" placeholder="bbs handle / call sign">
+                </div>
+                <div>
+                    <label for="bbs-channel">Channel</label>
+                    <input id="bbs-channel" name="channel" data-bind-channel data-signals-channel="psx-net" placeholder="channel / node">
+                </div>
+                <div>
+                    <label for="bbs-mood">Presence</label>
+                    <select id="bbs-mood" name="mood" data-bind-mood data-signals-mood="online">
+                        <option value="online" selected>online</option>
+                        <option value="dialing">dialing</option>
+                        <option value="idle">idle</option>
+                        <option value="stealth">stealth</option>
+                    </select>
+                </div>
+                <div class="full">
+                    <label for="bbs-message">Status message</label>
+                    <textarea id="bbs-message" name="message" rows="3" data-bind-message data-signals-message="Poly stream is crisp tonight. Checking signal and ready to post."></textarea>
+                </div>
+                <div class="actions">
+                    <button type="button" id="post-button">Post to board</button>
+                    <p class="hint">Datastar keeps these fields live; the board logs your latest ping.</p>
+                </div>
+            </form>
+            <div class="preview">
+                <div class="preview-card">
+                    <div class="label">Live roster</div>
+                    <div class="key">name</div>
+                    <div class="value" data-text="$name">Rogue User</div>
+                    <div class="key">handle</div>
+                    <div class="value" data-text="$handle">ghostline</div>
+                    <div class="key">channel</div>
+                    <div class="value" data-text="$channel">psx-net</div>
+                    <div class="key">presence</div>
+                    <div class="value" data-text="$mood">online</div>
+                    <div class="key">status</div>
+                    <div class="value full" data-text="$message">Poly stream is crisp tonight. Checking signal and ready to post.</div>
+                </div>
+                <div class="log" id="post-log" aria-live="polite">
+                    <div class="log-line muted">[--:--:--] waiting for callers ...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script type="module">
+import init from "./web-build/demo.js";
+
+init().catch((err) => {
+    console.error("failed to load wasm module", err);
+});
+
+const inputs = {
+    name: document.getElementById("bbs-name"),
+    handle: document.getElementById("bbs-handle"),
+    channel: document.getElementById("bbs-channel"),
+    mood: document.getElementById("bbs-mood"),
+    message: document.getElementById("bbs-message"),
+};
+
+const postLog = document.getElementById("post-log");
+const postButton = document.getElementById("post-button");
+const form = document.getElementById("bbs-form");
+
+function timestamp() {
+    const now = new Date();
+    return now.toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function appendLog(user, channel, message) {
+    if (!postLog) {
+        return;
+    }
+
+    const line = document.createElement("div");
+    line.className = "log-line";
+
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "time";
+    timeSpan.textContent = `[${timestamp()}]`;
+
+    const userSpan = document.createElement("span");
+    userSpan.className = "user";
+    userSpan.textContent = user;
+
+    const channelSpan = document.createElement("span");
+    channelSpan.className = "channel";
+    channelSpan.textContent = `@${channel}`;
+
+    const msgSpan = document.createElement("span");
+    msgSpan.className = "message";
+    msgSpan.textContent = message;
+
+    line.append(timeSpan, userSpan, channelSpan, msgSpan);
+    postLog.prepend(line);
+
+    while (postLog.childElementCount > 9) {
+        postLog.removeChild(postLog.lastElementChild);
+    }
+}
+
+function collectValue(field, fallback) {
+    const value = (field?.value || "").trim();
+    return value.length > 0 ? value : fallback;
+}
+
+function postEntry() {
+    const name = collectValue(inputs.name, "anon");
+    const handle = collectValue(inputs.handle, "ghost");
+    const channel = collectValue(inputs.channel, "psx-net");
+    const mood = collectValue(inputs.mood, "online");
+    const message = collectValue(inputs.message, "listening in");
+
+    appendLog(handle, channel, `${message} // ${mood} // ${name}`);
+}
+
+postButton?.addEventListener("click", postEntry);
+form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    postEntry();
+});
+
+appendLog("sysop", "psx-net", "carrier locked; bevy feed is rendering behind the board.");
+appendLog("mirror", "deepline", "drop a handle, leave a ping, and ride the polygons.");
+</script>
+</body>
+</html>
