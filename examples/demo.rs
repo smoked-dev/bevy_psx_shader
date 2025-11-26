@@ -1,6 +1,6 @@
 use bevy::{
     asset::{AssetMetaCheck, AssetPlugin},
-    core_pipeline::bloom::Bloom,
+    core_pipeline::{bloom::Bloom, tonemapping::Tonemapping},
     prelude::*,
     render::view::NoFrustumCulling,
     window::{PresentMode, Window, WindowPlugin},
@@ -25,6 +25,17 @@ use bevy::{
         texture::ImagePlugin,
     },
 };
+
+const TONEMAPPING_ORDER: [Tonemapping; 8] = [
+    Tonemapping::None,
+    Tonemapping::Reinhard,
+    Tonemapping::ReinhardLuminance,
+    Tonemapping::AcesFitted,
+    Tonemapping::AgX,
+    Tonemapping::SomewhatBoringDisplayTransform,
+    Tonemapping::TonyMcMapface,
+    Tonemapping::BlenderFilmic,
+];
 fn main() {
     App::new()
     //    .insert_resource(DefaultOpaqueRendererMethod::deferred())
@@ -60,7 +71,7 @@ fn main() {
         //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (orbit_psx_camera))
+        .add_systems(Update, (orbit_psx_camera, cycle_tonemapping))
         //    .add_systems(Update,rotate)
         //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
@@ -192,6 +203,28 @@ struct Rotates;
 
 #[derive(Component)]
 struct OrbitingCamera;
+
+fn cycle_tonemapping(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut current_index: Local<usize>,
+    mut cameras: Query<&mut Tonemapping, With<OrbitingCamera>>,
+) {
+    let mut updated_index = *current_index;
+    if keys.just_pressed(KeyCode::ArrowRight) {
+        updated_index = (updated_index + 1) % TONEMAPPING_ORDER.len();
+    } else if keys.just_pressed(KeyCode::ArrowLeft) {
+        updated_index = (updated_index + TONEMAPPING_ORDER.len() - 1) % TONEMAPPING_ORDER.len();
+    } else {
+        return;
+    }
+
+    let new_mode = TONEMAPPING_ORDER[updated_index];
+    for mut tonemapping in &mut cameras {
+        *tonemapping = new_mode;
+    }
+    *current_index = updated_index;
+    info!("Tonemapping set to {:?}", new_mode);
+}
 
 /// Rotates any entity around the x and y axis
 #[allow(dead_code)]

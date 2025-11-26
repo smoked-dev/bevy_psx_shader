@@ -199,7 +199,7 @@ pub fn setup_camera(
                 exposure,
                 camera,
                 ScreenSpaceReflections::default(),
-                bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
+                bevy::core_pipeline::tonemapping::Tonemapping::None,
             ));
 
             let render_layer = 3;
