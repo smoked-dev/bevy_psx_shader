@@ -3,7 +3,8 @@ use bevy::{
     core_pipeline::bloom::Bloom,
     prelude::*,
     render::view::NoFrustumCulling,
-    window::{PresentMode, Window, WindowPlugin},
+    ui::TargetCamera,
+    window::{PresentMode, PrimaryWindow, Window, WindowPlugin},
 };
 use bevy_psx::{
     camera::PsxCamera,
@@ -60,7 +61,7 @@ fn main() {
         //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (orbit_psx_camera))
+        .add_systems(Update, (orbit_psx_camera, orbit_ui_text))
         //    .add_systems(Update,rotate)
         //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
@@ -78,7 +79,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut water_materials: ResMut<Assets<ExtendedMaterial<StandardMaterial, Water>>>,
 ) {
-    commands.spawn((
+    let psx_camera = commands.spawn((
         PsxCamera::new(
             UVec2::new(1920 / 2, 1080 / 2),
             None,
@@ -90,7 +91,59 @@ fn setup(
         ),
     //    Bloom::default(),
         OrbitingCamera,
-    ));
+    ))
+    .id();
+
+    // UI is targeted to the PSX render camera so it gets written into the low-res texture.
+    commands
+        .spawn((
+            NodeBundle {
+                node: Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::FlexEnd,
+                    align_items: AlignItems::FlexEnd,
+                    padding: UiRect::all(Val::Px(12.0)),
+                    ..default()
+                },
+                background_color: BackgroundColor(Color::NONE),
+                ..default()
+            },
+            TargetCamera(psx_camera),
+            Name::new("PsxUiRoot"),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                NodeBundle {
+                    node: Node {
+                        padding: UiRect::all(Val::Px(8.0)),
+                        ..default()
+                    },
+                    background_color: BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 0.7)),
+                    ..default()
+                },
+                Name::new("UiPanel"),
+            ));
+            parent.spawn((
+                Text::new("Hello world"),
+                TextFont {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 28.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+                Node {
+                    position_type: PositionType::Absolute,
+                    padding: UiRect::all(Val::Px(10.0)),
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.1, 0.2, 0.9, 0.85)),
+                BorderRadius::all(Val::Px(12.0)),
+                OrbitingUiText,
+                Name::new("UiText"),
+            ));
+        });
+
     let transform =
         Transform::from_scale(Vec3::splat(0.20)).with_translation(Vec3::new(0.0, -3.5, -10.0));
     /*     commands.spawn((
@@ -193,6 +246,9 @@ struct Rotates;
 #[derive(Component)]
 struct OrbitingCamera;
 
+#[derive(Component)]
+struct OrbitingUiText;
+
 /// Rotates any entity around the x and y axis
 #[allow(dead_code)]
 fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
@@ -211,6 +267,26 @@ fn orbit_psx_camera(time: Res<Time>, mut query: Query<&mut Transform, With<Orbit
     for mut transform in &mut query {
         let z = transform.translation.z;
         transform.translation = Vec3::new(angle.cos() * x_radius, angle.sin() * y_radius + 2., 10.);
+    }
+}
+
+fn orbit_ui_text(
+    time: Res<Time>,
+    mut query: Query<&mut Node, With<OrbitingUiText>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+) {
+    let Ok(window) = windows.get_single() else {
+        return;
+    };
+    let center_x = window.resolution.width() / 2.0;
+    let center_y = window.resolution.height() / 2.0;
+    let radius = 120.0;
+    let angle = time.elapsed_secs() * 1.0;
+
+    for mut node in &mut query {
+        node.position_type = PositionType::Absolute;
+        node.left = Val::Px(center_x + radius * angle.cos());
+        node.top = Val::Px(center_y + radius * angle.sin());
     }
 }
 

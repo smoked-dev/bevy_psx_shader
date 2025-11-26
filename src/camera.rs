@@ -19,6 +19,7 @@ use bevy::{
         view::RenderLayers,
     },
     sprite::MeshMaterial2d,
+    ui::IsDefaultUiCamera,
     window::PrimaryWindow,
 };
 
@@ -200,6 +201,8 @@ pub fn setup_camera(
                 camera,
                 ScreenSpaceReflections::default(),
                 bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
+                // Make this render camera the default target for UI so widgets are drawn into the low-res render texture.
+                IsDefaultUiCamera,
             ));
 
             let render_layer = 3;
