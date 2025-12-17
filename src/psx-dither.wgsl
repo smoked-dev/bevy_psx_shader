@@ -9,6 +9,7 @@ struct PsxDitherMaterial {
     mult_color: vec3<f32>,
     dither_amount: f32,
     banding_enabled: u32,
+    chroma_k: vec4<f32>,
 };
 
 
@@ -196,11 +197,22 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
   //  var base_col = textureSample(base_color_texture, base_color_sampler, uv_displaced);
 
-
+/* 
     let rChannel = textureSample(base_color_texture, base_color_sampler, pincush(uv_displaced, 0.3 * 0.3)).r;
     let gChannel = textureSample(base_color_texture, base_color_sampler, pincush(uv_displaced, 0.15 * 0.3)).g;
     let bChannel = textureSample(base_color_texture, base_color_sampler, pincush(uv_displaced, 0.075 * 0.3)).b;
     var base_col = vec4(rChannel, gChannel, bChannel, 1.);
+ */
+    let pixel_size_x = 1.0 / iResolution.x;
+    let pixel_size_y = 1.0 / iResolution.y;
+    var base_col = textureSample(base_color_texture, base_color_sampler, uv_displaced);
+    let color_left = textureSample(base_color_texture, base_color_sampler, uv_displaced - vec2(pixel_size_x, pixel_size_y));
+
+    // Aberration is applied only to the *difference* between the taps, so flat colors stay flat.
+    let diff = base_col.rgb - color_left.rgb;
+    base_col = vec4<f32>(base_col.rgb + diff * material.chroma_k.rgb, base_col.a);
+//    base_col = vec4(base_col.rgb + dpdx(base_col.rgb)*vec3(3.,0.,-3.), base_col.a);
+    base_col = base_col;
 
 //    base_col = vec4(base_col.rgb + dpdx(base_col.rgb)*vec3(3.,0.,-3.), base_col.a);
 
@@ -226,6 +238,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
     let raw_color = final_col.rbg;// - colour * 0.5;
     final_col = vec4<f32>(textureSample(lut_texture, lut_sampler, raw_color + half_texel).rgb, 1.0).rgb;
-    final_col += vec3(noise * 0.035);
+//    final_col += vec3(noise * 0.035);
+//    final_col *= 1.0 - 0.12 * step(0.5, fract(floor(uv_displaced.y * iResolution.y) * 0.5)); // scanlines (comment out to disable)
     return vec4(final_col, 1.0);
 }

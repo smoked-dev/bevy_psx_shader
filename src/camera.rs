@@ -200,7 +200,7 @@ pub fn setup_camera(
                 exposure,
                 camera,
                 ScreenSpaceReflections::default(),
-                bevy::core_pipeline::tonemapping::Tonemapping::TonyMcMapface,
+                bevy::core_pipeline::tonemapping::Tonemapping::None,
                 // Make this render camera the default target for UI so widgets are drawn into the low-res render texture.
                 IsDefaultUiCamera,
             ));

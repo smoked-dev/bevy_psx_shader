@@ -12,3 +12,4 @@ bevy = { version = "0.15", features = ["webgl2", "jpeg" ] }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
+bevy_egui = "0.31"

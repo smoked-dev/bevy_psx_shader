@@ -3,12 +3,15 @@ use bevy::{
     core_pipeline::bloom::Bloom,
     prelude::*,
     render::view::NoFrustumCulling,
+    sprite::MeshMaterial2d,
     ui::TargetCamera,
     window::{PresentMode, PrimaryWindow, Window, WindowPlugin},
 };
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 use bevy_psx::{
-    camera::PsxCamera,
-    material::PsxMaterial,
+    camera::{PsxCamera, RenderImage},
+    godrays::{GodRaysPlugin, GodRaysTarget},
+    material::{PsxDitherMaterial, PsxMaterial},
     PsxPlugin,
 };
 
@@ -57,11 +60,18 @@ fn main() {
             }
             plugins
         })
+        .add_plugins(EguiPlugin)
         .add_plugins(MaterialPlugin::<ExtendedMaterial<StandardMaterial, Water>>::default())
         //    .add_plugins(DefaultPlugins)
         .add_plugins(PsxPlugin)
+        .add_plugins(GodRaysPlugin)
+        .init_resource::<ChromaticAberrationUi>()
         .add_systems(Startup, setup)
-        .add_systems(Update, (orbit_psx_camera, orbit_ui_text))
+        .add_systems(Update, (orbit_psx_camera, orbit_ui_text, chromatic_aberration_ui))
+        .add_systems(
+            Update,
+            apply_chromatic_aberration_to_material.after(chromatic_aberration_ui),
+        )
         //    .add_systems(Update,rotate)
         //    .add_systems(Update,render_image_scale2.after(scale_render_image))
         .run();
@@ -93,6 +103,8 @@ fn setup(
         OrbitingCamera,
     ))
     .id();
+
+    commands.entity(psx_camera).insert(GodRaysTarget);
 
     // UI is targeted to the PSX render camera so it gets written into the low-res texture.
     commands
@@ -249,6 +261,20 @@ struct OrbitingCamera;
 #[derive(Component)]
 struct OrbitingUiText;
 
+#[derive(Resource, Debug, Clone)]
+struct ChromaticAberrationUi {
+    k_rgb: [f32; 3],
+}
+
+impl Default for ChromaticAberrationUi {
+    fn default() -> Self {
+        Self {
+            // Matches the shader's default: out = current + k * (current - left)
+            k_rgb: [0.2, -0.5, -1.2],
+        }
+    }
+}
+
 /// Rotates any entity around the x and y axis
 #[allow(dead_code)]
 fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
@@ -287,6 +313,41 @@ fn orbit_ui_text(
         node.position_type = PositionType::Absolute;
         node.left = Val::Px(center_x + radius * angle.cos());
         node.top = Val::Px(center_y + radius * angle.sin());
+    }
+}
+
+fn chromatic_aberration_ui(mut contexts: EguiContexts, mut state: ResMut<ChromaticAberrationUi>) {
+    egui::Window::new("PSX Dither Tweaks").show(contexts.ctx_mut(), |ui| {
+        ui.label("Chromatic aberration tint (RGB)");
+        ui.label("0 disables a channel; affects only edges (tap difference).");
+        ui.add_space(8.0);
+
+        ui.add(egui::Slider::new(&mut state.k_rgb[0], -2.0..=2.0).text("R"));
+        ui.add(egui::Slider::new(&mut state.k_rgb[1], -2.0..=2.0).text("G"));
+        ui.add(egui::Slider::new(&mut state.k_rgb[2], -2.0..=2.0).text("B"));
+
+        ui.add_space(8.0);
+        if ui.button("Reset").clicked() {
+            *state = ChromaticAberrationUi::default();
+        }
+    });
+}
+
+fn apply_chromatic_aberration_to_material(
+    state: Res<ChromaticAberrationUi>,
+    render_images: Query<&MeshMaterial2d<PsxDitherMaterial>, With<RenderImage>>,
+    mut materials: ResMut<Assets<PsxDitherMaterial>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+
+    for material_handle in &render_images {
+        let Some(material) = materials.get_mut(&material_handle.0) else {
+            continue;
+        };
+
+        material.chroma_k = Vec4::new(state.k_rgb[0], state.k_rgb[1], state.k_rgb[2], 0.0);
     }
 }
 

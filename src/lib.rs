@@ -1,4 +1,5 @@
 pub mod camera;
+pub mod godrays;
 pub mod material;
 
 use bevy::render::primitives::Aabb;

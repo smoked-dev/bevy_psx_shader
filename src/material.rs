@@ -77,6 +77,11 @@ pub struct PsxDitherMaterial {
     pub dither_amount: f32,
     #[uniform(0)]
     pub banding_enabled: u32,
+    /// Chromatic aberration controls (x/y/z = RGB), applied to the difference between taps.
+    ///
+    /// `0.0` disables the effect for that channel.
+    #[uniform(0)]
+    pub chroma_k: Vec4,
 
     #[texture(1)]
     #[sampler(2)]
@@ -101,6 +106,9 @@ impl Default for PsxDitherMaterial {
             dither_amount: 8.0,
             dither_color_texture: Some(PSX_DITHER_HANDLE),
             banding_enabled: 1,
+            // Matches the previous hard-coded weights, but parameterized as:
+            // out = current + k * (current - left)
+            chroma_k: Vec4::new(0.2, -0.5, -1.2, 0.0),
             color_texture: None,
             lut_texture: Some(PSX_LUT_HANDLE),
         }
