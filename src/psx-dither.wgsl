@@ -174,9 +174,10 @@ fn pincush(uv: vec2<f32>, strength: f32) -> vec2<f32> {
 fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     var uv_displaced = in.uv;
 
-    let iResolution = vec2<f32>(textureDimensions(base_color_texture));
+    let render_target_size = vec2<f32>(textureDimensions(base_color_texture));
+    let render_target_uv = floor(uv_displaced * render_target_size) / render_target_size;
 
-    let noise = (fract(sin(dot(in.uv * globals.time, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 2.0;
+    let noise = (fract(sin(dot(render_target_uv * globals.time, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 2.0;
     //Noise stuff
     var maxStrength = 0.025;
     let minStrength = 0.125;
@@ -184,7 +185,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     let speed = 10.00;
 
 
-  //  let uv = floor(uv_displaced.xy * iResolution) / iResolution;
+  //  let uv = floor(uv_displaced.xy * render_target_size) / render_target_size;
    // let uv2 = fract(uv*fract(sin(globals.time*speed)));
     
     //--- Strength animate ---
@@ -213,7 +214,7 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     base_col.g += chroma.g;
     base_col.b += chroma.b;
  */
-    var final_col = ditherColor(base_col.rgb, uv_displaced, iResolution.x * 1., iResolution.y * 1.);
+    var final_col = ditherColor(base_col.rgb, uv_displaced, render_target_size.x * 1., render_target_size.y * 1.);
 
     let half_texel = vec3<f32>(1.0 / 64. / 2.);
 
@@ -226,6 +227,6 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
 
     let raw_color = final_col.rbg;// - colour * 0.5;
     final_col = vec4<f32>(textureSample(lut_texture, lut_sampler, raw_color + half_texel).rgb, 1.0).rgb;
-    final_col += vec3(noise * 0.035);
+    final_col += vec3(noise * 0.01);
     return vec4(final_col, 1.0);
 }

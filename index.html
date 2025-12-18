@@ -6,6 +6,12 @@
     <title>Bevy PSX Demo (Web)</title>
     <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@main/bundles/datastar.js"></script>
     <style>
+        @font-face {
+            font-family: "3DIsometric";
+            src: url("./assets/fonts/3DIsometric-Black.ttf") format("truetype");
+            font-display: swap;
+        }
+
         :root {
             --bg: #05060c;
             --panel: rgba(10, 14, 22, 0.86);
@@ -14,7 +20,39 @@
             --text: #c8f7f4;
             --muted: #7ad3c4;
             --accent: #ffe983;
+            --card-bg: #050910;
+            --card-border: #183232;
+            --log-bg: #03060d;
+            --log-border: #18252a;
+            --input-bg: #04070f;
+            --input-border: #1b2a2a;
+            --tab-bg: rgba(10, 14, 22, 0.65);
+            --header-line: rgba(45, 228, 198, 0.5);
+            --logo-glow1: rgba(255, 233, 131, 0.55);
+            --logo-glow2: rgba(45, 228, 198, 0.35);
+            --logo-shadow: rgba(0, 0, 0, 0.45);
             font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        body.light-mode {
+            --bg: #f6f8fb;
+            --panel: rgba(255, 255, 255, 0.96);
+            --panel-border: #0f8c7d;
+            --panel-soft: #d7ece7;
+            --text: #0c1c1a;
+            --muted: #375e5a;
+            --accent: #e78c1d;
+            --card-bg: #f1f5f9;
+            --card-border: #c8d7d5;
+            --log-bg: #e9f0f3;
+            --log-border: #c1d1cf;
+            --input-bg: #ffffff;
+            --input-border: #b7cbc8;
+            --tab-bg: rgba(240, 244, 247, 0.82);
+            --header-line: rgba(15, 140, 125, 0.35);
+            --logo-glow1: rgba(231, 140, 29, 0.55);
+            --logo-glow2: rgba(15, 140, 125, 0.35);
+            --logo-shadow: rgba(0, 0, 0, 0.2);
         }
 
         * {
@@ -42,6 +80,12 @@
             z-index: 0;
         }
 
+        body.light-mode::before {
+            background: radial-gradient(circle at 18% 18%, rgba(15, 140, 125, 0.12), transparent 42%),
+                        radial-gradient(circle at 82% 28%, rgba(231, 140, 29, 0.14), transparent 32%),
+                        linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(240, 244, 247, 0.95));
+        }
+
         #bevy-canvas {
             position: fixed;
             inset: 0;
@@ -53,20 +97,24 @@
         }
 
         .overlay {
-            position: relative;
+            position: fixed;
+            left: 0;
+            top: 0;
             z-index: 1;
             height: 100vh;
-            width: 100%;
+            width: min(50vw, 960px);
+            max-width: 960px;
+            min-width: 420px;
             display: flex;
             align-items: stretch;
-            justify-content: center;
-            padding: 12px 8vw 12px 14vw; /* nudge the panel right while leaving breathing room */
+            justify-content: flex-end;
+            padding: 12px 2vw 12px 3vw; /* push the board toward center split */
             pointer-events: none;
         }
 
         .bbs-shell {
             position: relative;
-            width: min(640px, 34vw);
+            width: min(620px, 92%);
             min-width: 360px;
             height: calc(100vh - 24px);
             min-height: 0;
@@ -110,7 +158,7 @@
             justify-content: space-between;
             align-items: center;
             padding-bottom: 8px;
-            border-bottom: 1px solid rgba(45, 228, 198, 0.5);
+            border-bottom: 1px solid var(--header-line);
             text-transform: uppercase;
             letter-spacing: 0.08em;
             font-size: 0.9rem;
@@ -152,6 +200,53 @@
             min-height: 0;
         }
 
+        .logo-banner {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-family: "3DIsometric", "IBM Plex Mono", monospace;
+            font-size: clamp(3.6rem, 6vw + 1.4rem, 7.6rem);
+            line-height: 1.05;
+            letter-spacing: 0.04em;
+            color: var(--accent);
+            text-shadow:
+                0 0 4px var(--logo-glow1),
+                0 0 12px var(--logo-glow2),
+                0 2px 0 var(--logo-shadow);
+            padding: 2px 0 12px;
+            border-bottom: 1px solid var(--header-line);
+            margin-bottom: 4px;
+            width: 100%;
+            max-width: 100%;
+            white-space: nowrap;
+        }
+
+        .logo-banner span {
+            display: inline-block;
+            animation: wave 2.8s ease-in-out infinite;
+        }
+
+        .logo-banner span:nth-child(odd) {
+            animation-delay: 0.1s;
+        }
+
+        .logo-banner span:nth-child(2) { animation-delay: 0.22s; }
+        .logo-banner span:nth-child(3) { animation-delay: 0.34s; }
+        .logo-banner span:nth-child(4) { animation-delay: 0.46s; }
+        .logo-banner span:nth-child(5) { animation-delay: 0.58s; }
+        .logo-banner span:nth-child(6) { animation-delay: 0.7s; }
+        .logo-banner span:nth-child(7) { animation-delay: 0.82s; }
+        .logo-banner span:nth-child(8) { animation-delay: 0.94s; }
+        .logo-banner span:nth-child(9) { animation-delay: 1.06s; }
+        .logo-banner span:nth-child(10) { animation-delay: 1.18s; }
+
+        @keyframes wave {
+            0% { transform: translateY(0px); }
+            25% { transform: translateY(-5px); }
+            50% { transform: translateY(0px); }
+            75% { transform: translateY(5px); }
+            100% { transform: translateY(0px); }
+        }
+
         .bbs-form {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -179,8 +274,8 @@
             width: 100%;
             padding: 8px 10px;
             border-radius: 3px;
-            background: #04070f;
-            border: 1px solid #1b2a2a;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
             color: var(--text);
             outline: none;
             transition: border-color 0.15s, box-shadow 0.15s;
@@ -225,11 +320,12 @@
             grid-template-rows: auto 1fr;
             gap: 8px;
             min-height: 0;
+            flex: 1;
         }
 
         .preview-card {
-            background: #050910;
-            border: 1px solid #183232;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
             padding: 10px;
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -262,9 +358,77 @@
             grid-column: 1 / -1;
         }
 
+        .tab-bar {
+            grid-column: 1 / -1;
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 0 2px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .tab-group {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .tab {
+            padding: 6px 10px;
+            border: 1px solid rgba(45, 228, 198, 0.35);
+            background: var(--tab-bg);
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
+        }
+
+        .tab:hover {
+            border-color: var(--panel-border);
+            color: var(--accent);
+            box-shadow: 0 0 8px rgba(45, 228, 198, 0.25);
+        }
+
+        .tab.active {
+            border-color: var(--panel-border);
+            color: var(--text);
+            background: linear-gradient(90deg, rgba(23, 194, 166, 0.32), rgba(45, 228, 198, 0.22));
+            box-shadow: 0 0 10px rgba(45, 228, 198, 0.35);
+        }
+
+        .tab-panel {
+            display: none;
+            grid-column: 1 / -1;
+            min-height: 0;
+        }
+
+        .tab-panel.active {
+            display: contents;
+        }
+
+        .theme-toggle {
+            padding: 6px 10px;
+            border: 1px solid var(--panel-border);
+            background: linear-gradient(90deg, rgba(23, 194, 166, 0.16), rgba(45, 228, 198, 0.12));
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.72rem;
+            cursor: pointer;
+            transition: filter 0.15s, box-shadow 0.15s;
+        }
+
+        .theme-toggle:hover {
+            filter: brightness(1.08);
+            box-shadow: 0 0 8px rgba(45, 228, 198, 0.25);
+        }
+
         .log {
-            background: #03060d;
-            border: 1px solid #18252a;
+            background: var(--log-bg);
+            border: 1px solid var(--log-border);
             padding: 10px;
             overflow-y: auto;
             font-size: 0.9rem;
@@ -303,6 +467,13 @@
                 min-width: 0;
                 height: auto;
             }
+            .overlay {
+                position: relative;
+                width: 100%;
+                min-width: 0;
+                padding: 12px 6vw;
+                justify-content: center;
+            }
         }
 
         @media (max-width: 720px) {
@@ -329,53 +500,78 @@
             <div class="status">channel open <span class="blink" aria-hidden="true"></span></div>
         </div>
         <div class="bbs-body">
-            <form id="bbs-form" class="bbs-form" autocomplete="off">
-                <div>
-                    <label for="bbs-name">Name</label>
-                    <input id="bbs-name" name="name" data-bind-name data-signals-name="Rogue User" placeholder="enter a display name">
+            <div class="logo-banner" aria-label="demons dot wtf logo">
+                <span>d</span><span>e</span><span>m</span><span>o</span><span>n</span><span>s</span><span>.</span><span>w</span><span>t</span><span>f</span>
+            </div>
+            <div class="tab-bar">
+                <div class="tab-group">
+                    <button class="tab active" data-tab-target="player">Player</button>
+                    <button class="tab" data-tab-target="about">About</button>
                 </div>
-                <div>
-                    <label for="bbs-handle">Handle</label>
-                    <input id="bbs-handle" name="handle" data-bind-handle data-signals-handle="ghostline" placeholder="bbs handle / call sign">
+                <button class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark mode">Light mode</button>
+            </div>
+            <div class="tab-panel active" data-tab="player">
+                <form id="bbs-form" class="bbs-form" autocomplete="off">
+                    <div>
+                        <label for="bbs-name">Name</label>
+                        <input id="bbs-name" name="name" data-bind-name data-signals-name="Rogue User" placeholder="enter a display name">
+                    </div>
+                    <div>
+                        <label for="bbs-handle">Handle</label>
+                        <input id="bbs-handle" name="handle" data-bind-handle data-signals-handle="ghostline" placeholder="bbs handle / call sign">
+                    </div>
+                    <div>
+                        <label for="bbs-channel">Channel</label>
+                        <input id="bbs-channel" name="channel" data-bind-channel data-signals-channel="psx-net" placeholder="channel / node">
+                    </div>
+                    <div>
+                        <label for="bbs-mood">Presence</label>
+                        <select id="bbs-mood" name="mood" data-bind-mood data-signals-mood="online">
+                            <option value="online" selected>online</option>
+                            <option value="dialing">dialing</option>
+                            <option value="idle">idle</option>
+                            <option value="stealth">stealth</option>
+                        </select>
+                    </div>
+                    <div class="full">
+                        <label for="bbs-message">Status message</label>
+                        <textarea id="bbs-message" name="message" rows="3" data-bind-message data-signals-message="Poly stream is crisp tonight. Checking signal and ready to post."></textarea>
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="post-button">Post to board</button>
+                        <p class="hint">Datastar keeps these fields live; the board logs your latest ping.</p>
+                    </div>
+                </form>
+                <div class="preview">
+                    <div class="preview-card">
+                        <div class="label">Live roster</div>
+                        <div class="key">name</div>
+                        <div class="value" data-text="$name">Rogue User</div>
+                        <div class="key">handle</div>
+                        <div class="value" data-text="$handle">ghostline</div>
+                        <div class="key">channel</div>
+                        <div class="value" data-text="$channel">psx-net</div>
+                        <div class="key">presence</div>
+                        <div class="value" data-text="$mood">online</div>
+                        <div class="key">status</div>
+                        <div class="value full" data-text="$message">Poly stream is crisp tonight. Checking signal and ready to post.</div>
+                    </div>
+                    <div class="log" id="post-log" aria-live="polite">
+                        <div class="log-line muted">[--:--:--] waiting for callers ...</div>
+                    </div>
                 </div>
-                <div>
-                    <label for="bbs-channel">Channel</label>
-                    <input id="bbs-channel" name="channel" data-bind-channel data-signals-channel="psx-net" placeholder="channel / node">
-                </div>
-                <div>
-                    <label for="bbs-mood">Presence</label>
-                    <select id="bbs-mood" name="mood" data-bind-mood data-signals-mood="online">
-                        <option value="online" selected>online</option>
-                        <option value="dialing">dialing</option>
-                        <option value="idle">idle</option>
-                        <option value="stealth">stealth</option>
-                    </select>
-                </div>
-                <div class="full">
-                    <label for="bbs-message">Status message</label>
-                    <textarea id="bbs-message" name="message" rows="3" data-bind-message data-signals-message="Poly stream is crisp tonight. Checking signal and ready to post."></textarea>
-                </div>
-                <div class="actions">
-                    <button type="button" id="post-button">Post to board</button>
-                    <p class="hint">Datastar keeps these fields live; the board logs your latest ping.</p>
-                </div>
-            </form>
-            <div class="preview">
+            </div>
+            <div class="tab-panel" data-tab="about">
                 <div class="preview-card">
-                    <div class="label">Live roster</div>
-                    <div class="key">name</div>
-                    <div class="value" data-text="$name">Rogue User</div>
-                    <div class="key">handle</div>
-                    <div class="value" data-text="$handle">ghostline</div>
-                    <div class="key">channel</div>
-                    <div class="value" data-text="$channel">psx-net</div>
-                    <div class="key">presence</div>
-                    <div class="value" data-text="$mood">online</div>
-                    <div class="key">status</div>
-                    <div class="value full" data-text="$message">Poly stream is crisp tonight. Checking signal and ready to post.</div>
-                </div>
-                <div class="log" id="post-log" aria-live="polite">
-                    <div class="log-line muted">[--:--:--] waiting for callers ...</div>
+                    <div class="label">About this drop</div>
+                    <div class="key">build</div>
+                    <div class="value">psx shader demo — demons.wtf</div>
+                    <div class="key">vibe</div>
+                    <div class="value">lo-fi polygons, neon netspace, retro BBS vibes</div>
+                    <div class="key">controls</div>
+                    <div class="value">arrow keys: tonemap cycle · mouse/scroll: camera orbit/zoom (if enabled)</div>
+                    <div class="key">notes</div>
+                    <div class="value full">Drop a handle, log a status, and let the Datastar signals mirror your presence while the demon keeps watch.</div>
                 </div>
             </div>
         </div>
@@ -399,6 +595,10 @@ const inputs = {
 const postLog = document.getElementById("post-log");
 const postButton = document.getElementById("post-button");
 const form = document.getElementById("bbs-form");
+const tabButtons = Array.from(document.querySelectorAll(".tab"));
+const tabPanels = Array.from(document.querySelectorAll(".tab-panel"));
+const themeToggle = document.getElementById("theme-toggle");
+const THEME_KEY = "bbs-theme";
 
 function timestamp() {
     const now = new Date();
@@ -457,6 +657,39 @@ form?.addEventListener("submit", (event) => {
     event.preventDefault();
     postEntry();
 });
+
+tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+        const target = btn.dataset.tabTarget;
+        tabButtons.forEach((b) => b.classList.toggle("active", b === btn));
+        tabPanels.forEach((panel) => panel.classList.toggle("active", panel.dataset.tab === target));
+    });
+});
+
+function applyTheme(mode) {
+    const isLight = mode === "light";
+    document.body.classList.toggle("light-mode", isLight);
+    if (themeToggle) {
+        themeToggle.textContent = isLight ? "Dark mode" : "Light mode";
+    }
+}
+
+themeToggle?.addEventListener("click", () => {
+    const isLight = !document.body.classList.contains("light-mode");
+    applyTheme(isLight ? "light" : "dark");
+    try {
+        localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
+    } catch (_) {
+        // ignore storage failures
+    }
+});
+
+try {
+    const saved = localStorage.getItem(THEME_KEY);
+    applyTheme(saved === "light" ? "light" : "dark");
+} catch (_) {
+    applyTheme("dark");
+}
 
 appendLog("sysop", "psx-net", "carrier locked; bevy feed is rendering behind the board.");
 appendLog("mirror", "deepline", "drop a handle, leave a ping, and ride the polygons.");

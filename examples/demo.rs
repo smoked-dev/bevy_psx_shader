@@ -240,10 +240,11 @@ fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
 fn orbit_psx_camera(time: Res<Time>, mut query: Query<&mut Transform, With<OrbitingCamera>>) {
     let angle = time.elapsed_secs() * 0.3;
     let x_radius = 0.4;
+    let x_bias = -0.5; // slight left offset so the subject sits on the right side of frame near center
     let y_radius = 0.25;
     for mut transform in &mut query {
         let z = transform.translation.z;
-        transform.translation = Vec3::new(angle.cos() * x_radius, angle.sin() * y_radius + 2., 10.);
+        transform.translation = Vec3::new(angle.cos() * x_radius + x_bias, angle.sin() * y_radius + 2., 10.);
     }
 }
 
