@@ -3,22 +3,20 @@
 use std::f32::consts::PI;
 
 use bevy::{
+    camera::{visibility::RenderLayers, Exposure, PhysicalCameraParameters, RenderTarget, Viewport},
     image::{
         BevyDefault, ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
         ImageSamplerDescriptor,
     },
-    pbr::ScreenSpaceReflections,
+    //pbr::ScreenSpaceReflections,
     prelude::*,
     render::{
-        camera::{Exposure, PhysicalCameraParameters, RenderTarget, Viewport},
-        mesh::Mesh2d,
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
             TextureViewDescriptor, TextureViewDimension,
         },
-        view::RenderLayers,
+        view::Hdr,
     },
-    sprite::MeshMaterial2d,
     ui::IsDefaultUiCamera,
     window::PrimaryWindow,
 };
@@ -49,6 +47,31 @@ impl Default for PsxCamera {
             fov: 105.,
             banding_enabled: 1,
         }
+    }
+}
+
+/// Controls the render resolution scaling.
+/// A divisor of 1 = full resolution, 2 = half, 4 = quarter.
+#[derive(Resource, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResolutionScale {
+    pub divisor: u32,
+}
+
+impl Default for ResolutionScale {
+    fn default() -> Self {
+        Self { divisor: 2 }
+    }
+}
+
+impl ResolutionScale {
+    pub fn full() -> Self {
+        Self { divisor: 1 }
+    }
+    pub fn half() -> Self {
+        Self { divisor: 2 }
+    }
+    pub fn quarter() -> Self {
+        Self { divisor: 4 }
     }
 }
 
@@ -186,28 +209,30 @@ pub fn setup_camera(
                 ..Default::default()
             });
             let camera = Camera {
-                target: RenderTarget::Image(image_handle.clone()),
+                target: RenderTarget::Image(image_handle.clone().into()),
                 clear_color: ClearColorConfig::Custom(Color::srgba(0., 0., 0., 0.)),
-                hdr: pixel_camera.hdr,
                 ..default()
             };
 
-            commands.entity(entity).insert((
+            let mut entity_commands = commands.entity(entity);
+            entity_commands.insert((
                 Visibility::Hidden,
                 Transform::default(),
                 Camera3d::default(),
                 projection,
                 exposure,
                 camera,
-                ScreenSpaceReflections::default(),
+            //    ScreenSpaceReflections::default(),
                 bevy::core_pipeline::tonemapping::Tonemapping::None,
-                // Make this render camera the default target for UI so widgets are drawn into the low-res render texture.
-                IsDefaultUiCamera,
             ));
 
-            let render_layer = 3;
-            let ui_layer = render_layer - 1;
+            // HDR is now a separate component
+            if pixel_camera.hdr {
+                entity_commands.insert(Hdr);
+            }
 
+            let render_layer = 2;
+            
             let quad_handle = meshes.add(Mesh::from(Rectangle::new(
                 (size.width * 4) as f32,
                 (size.height * 4) as f32,
@@ -311,7 +336,10 @@ pub fn setup_camera(
                 Transform::default(),
                 RenderLayers::layer(render_layer),
                 FinalCameraTag,
+                // UI renders on top of the final composed image, not into the PSX render texture
+                IsDefaultUiCamera,
             ));
+            /* 
             commands.spawn((
                 Camera2d,
                 Camera {
@@ -323,20 +351,21 @@ pub fn setup_camera(
                 Transform::default(),
                 RenderLayers::layer(ui_layer),
             ));
+            */
         }
     }
 }
 
 pub fn scale_render_image(
     mut texture_query: Query<&mut Transform, With<RenderImage>>,
-    mut camera_query: Query<&mut bevy::render::camera::Camera, With<FinalCameraTag>>,
+    mut camera_query: Query<&mut Camera, With<FinalCameraTag>>,
     mut psx_camera_query: Query<&PsxCamera>,
     mut windows: Query<&mut Window, With<PrimaryWindow>>,
 ) {
-    if let Ok(mut texture_transform) = texture_query.get_single_mut() {
-        if let Ok(window) = windows.get_single_mut() {
-            if let Ok(mut camera) = camera_query.get_single_mut() {
-                if let Ok(psx_camera) = psx_camera_query.get_single_mut() {
+    if let Ok(mut texture_transform) = texture_query.single_mut() {
+        if let Ok(window) = windows.single_mut() {
+            if let Ok(mut camera) = camera_query.single_mut() {
+                if let Ok(psx_camera) = psx_camera_query.single_mut() {
                     let (screen_width, screen_height) = (psx_camera.size.x, psx_camera.size.y);
                     let aspect_ratio = screen_width as f32 / screen_height as f32;
                     let window_size: UVec2 = if window.physical_height() > window.physical_width()
@@ -413,7 +442,9 @@ pub fn render_image_scale2(
     mut pixel_cameras: Query<&mut PsxCamera>,
     mut cameras: Query<&mut Camera>,
     windows: Query<&Window>,
+    resolution_scale: Res<ResolutionScale>,
 ) {
+    let divisor = resolution_scale.divisor.max(1);
     for window in windows.iter() {
         for mut psx_camera in pixel_cameras.iter_mut() {
             for mut camera in cameras.iter_mut() {
@@ -425,8 +456,8 @@ pub fn render_image_scale2(
                         );
 
                         let size = Extent3d {
-                            width: window_size.x / 2,
-                            height: window_size.y / 2,
+                            width: window_size.x / divisor,
+                            height: window_size.y / divisor,
                             ..default()
                         };
 
@@ -436,8 +467,8 @@ pub fn render_image_scale2(
                             for pixel_mesh in pixel_meshes.iter() {
                                 if let Some(mesh) = meshes.get_mut(pixel_mesh.0.id()) {
                                     *mesh = Mesh::from(Rectangle::new(
-                                        (size.width * 2) as f32,
-                                        (size.height * 2) as f32,
+                                        (size.width * divisor) as f32,
+                                        (size.height * divisor) as f32,
                                     ));
                                 }
                             }

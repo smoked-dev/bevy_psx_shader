@@ -14,19 +14,19 @@ struct PsxDitherMaterial {
 
 
 
-@group(2) @binding(0)
+@group(#{MATERIAL_BIND_GROUP}) @binding(0)
 var<uniform> material: PsxDitherMaterial;
-@group(2) @binding(1)
+@group(#{MATERIAL_BIND_GROUP}) @binding(1)
 var base_color_texture: texture_2d<f32>;
-@group(2) @binding(2)
+@group(#{MATERIAL_BIND_GROUP}) @binding(2)
 var base_color_sampler: sampler;
-@group(2) @binding(3)
+@group(#{MATERIAL_BIND_GROUP}) @binding(3)
 var dither_color_texture: texture_2d<f32>;
-@group(2) @binding(4)
+@group(#{MATERIAL_BIND_GROUP}) @binding(4)
 var dither_color_sampler: sampler;
-@group(2) @binding(5)
+@group(#{MATERIAL_BIND_GROUP}) @binding(5)
 var lut_texture: texture_3d<f32>;
-@group(2) @binding(6)
+@group(#{MATERIAL_BIND_GROUP}) @binding(6)
 var lut_sampler: sampler;
 
 fn random (noise: vec2<f32>) -> f32
@@ -208,9 +208,14 @@ fn fragment(in: FragmentInput) -> @location(0) vec4<f32> {
     var base_col = textureSample(base_color_texture, base_color_sampler, uv_displaced);
     let color_left = textureSample(base_color_texture, base_color_sampler, uv_displaced - vec2(pixel_size_x, pixel_size_y));
 
+    // Calculate edge factor - 0 in center, 1 at edges
+    let center_uv = uv_displaced - 0.5;
+    let edge_factor = smoothstep(0.15, 0.5, length(center_uv));
+
     // Aberration is applied only to the *difference* between the taps, so flat colors stay flat.
+    // Scale by edge_factor so the center stays clear
     let diff = base_col.rgb - color_left.rgb;
-    base_col = vec4<f32>(base_col.rgb + diff * material.chroma_k.rgb, base_col.a);
+    base_col = vec4<f32>(base_col.rgb + diff * material.chroma_k.rgb * edge_factor, base_col.a);
 //    base_col = vec4(base_col.rgb + dpdx(base_col.rgb)*vec3(3.,0.,-3.), base_col.a);
     base_col = base_col;
 

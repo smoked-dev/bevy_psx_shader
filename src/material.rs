@@ -1,10 +1,10 @@
-use bevy::{prelude::*, reflect::TypePath, render::render_resource::*, sprite::Material2d};
+use bevy::{asset::uuid_handle, prelude::*, reflect::TypePath, render::render_resource::*, shader::ShaderRef, sprite_render::Material2d};
 
-pub const PSX_FRAG_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(310591614790536);
-pub const PSX_DITH_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(210541614790536);
-pub const PSX_DITHER_HANDLE: Handle<Image> = Handle::weak_from_u128(510291613494514);
-pub const PSX_VERT_SHADER_HANDLE: Handle<Shader> = Handle::weak_from_u128(120592519790135);
-pub const PSX_LUT_HANDLE: Handle<Image> = Handle::weak_from_u128(120592519790132);
+pub const PSX_FRAG_SHADER_HANDLE: Handle<Shader> = uuid_handle!("a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d");
+pub const PSX_DITH_SHADER_HANDLE: Handle<Shader> = uuid_handle!("b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e");
+pub const PSX_DITHER_HANDLE: Handle<Image> = uuid_handle!("c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f");
+pub const PSX_VERT_SHADER_HANDLE: Handle<Shader> = uuid_handle!("d4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a");
+pub const PSX_LUT_HANDLE: Handle<Image> = uuid_handle!("e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b");
 
 impl Material for PsxMaterial {
     fn fragment_shader() -> ShaderRef {

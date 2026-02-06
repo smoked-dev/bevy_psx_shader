@@ -1,15 +1,12 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bevy::{
+    asset::RenderAssetUsages,
+    camera::visibility::NoFrustumCulling,
     image::{ImageAddressMode, ImageFilterMode, ImageSampler, ImageSamplerDescriptor},
     pbr::MeshMaterial3d,
     prelude::*,
-    render::{
-        mesh::Mesh3d,
-        render_asset::RenderAssetUsages,
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-        view::NoFrustumCulling,
-    },
+    render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 };
 
 #[derive(Component)]
@@ -299,7 +296,7 @@ fn cleanup_orphaned_god_rays_anchors(
 ) {
     for (anchor_entity, anchor) in &anchors {
         if targets.get(anchor.target).is_err() {
-            commands.entity(anchor_entity).despawn_recursive();
+            commands.entity(anchor_entity).despawn();
         }
     }
 }
